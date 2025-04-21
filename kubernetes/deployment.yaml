@@ -5,7 +5,7 @@ metadata:
   labels:
     app: receipt-backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: receipt-backend
@@ -20,23 +20,23 @@ spec:
         ports:
         - containerPort: 9090
         env:
-        - name: MONGODB_URI
+        - name: SPRING_DATA_MONGODB_URI
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-uri
-        - name: MONGODB_DATABASE
+        - name: SPRING_DATA_MONGODB_DATABASE
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-database
         resources:
           limits:
-            cpu: "500m"
-            memory: "512Mi"
+            cpu: "200m"
+            memory: "256Mi"
           requests:
             cpu: "100m"
-            memory: "256Mi"
+            memory: "128Mi"
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
@@ -48,27 +48,7 @@ spec:
             path: /actuator/health/readiness
             port: 9090
           initialDelaySeconds: 30
-          periodSeconds: 5 
-      - name: mongodb
-        image: mongo:latest
-        ports:
-        - containerPort: 27017
-        env:
-        - name: MONGODB_INITDB_ROOT_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: mongodb-username
-        - name: MONGODB_INITDB_ROOT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: mongodb-password
-        - name: MONGODB_INITDB_DATABASE
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: mongodb-database
+          periodSeconds: 5
         resources:
           limits:
             cpu: "500m"

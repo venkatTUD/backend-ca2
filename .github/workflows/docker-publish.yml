@@ -98,15 +98,35 @@ jobs:
           token-setup-trivy: ${{ secrets.REPO_TOKEN }}
         continue-on-error: true # <-- This allows the job to continue even if Trivy exits with 1
 
-      # Step 9: Install doctl for Digital Ocean API interactions
+      # Step 9: Install and configure doctl
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
-      # Step 10: Configure kubectl with Digital Ocean Kubernetes cluster
+      # Step 10: Configure kubectl with Digital Ocean cluster
       - name: Configure kubectl
-        run: doctl kubernetes cluster kubeconfig save ${{ env.DO_CLUSTER_NAME }} 
+        run: doctl kubernetes cluster kubeconfig save ${{ env.DO_CLUSTER_NAME }}
+
+      # Step 11: Update Kubernetes secrets
+      - name: Update MongoDB secret
+        env:
+          MONGODB_URI: mongodb://${{ secrets.MONGO_DB_USERNAME }}:${{ secrets.MONGO_DB_PASSWORD }}@mongodb-service:27017/${{ secrets.MONGO_DB_NAME }}
+          MONGODB_DATABASE: ${{ secrets.MONGO_DB_NAME }}
+          MONGODB_USERNAME: ${{ secrets.MONGO_DB_USERNAME }}
+          MONGODB_PASSWORD: ${{ secrets.MONGO_DB_PASSWORD }}
+        run: |
+          envsubst < kubernetes/secret.yaml | kubectl apply -f -
+
+      # Step 11: Deploy to Kubernetes
+      - name: Deploy to Kubernetes
+        run: |
+          # Update deployment image
+          kubectl set image deployment/receipt-backend receipt-backend=venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+          
+          # Apply Kubernetes configurations
+          kubectl apply -f kubernetes/deployment.yaml
+
 
       # # Step 11: Update deployment manifest with new image tag
       # - name: Update deployment image
@@ -117,9 +137,17 @@ jobs:
       # Step 12: Deploy to Kubernetes
       - name: Deploy to Digital Ocean Kubernetes
         run: |
-          kubectl apply -f kubernetes/secret.yaml
+          # Apply MongoDB deployment first
+          kubectl apply -f kubernetes/mongodb-deployment.yaml
+          kubectl rollout status deployment/mongodb
+          
+          # Apply the application deployment
           kubectl apply -f kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/service.yaml
+          
+          # Force a new deployment by scaling down and up
           kubectl scale deployment/receipt-backend --replicas=0
           kubectl scale deployment/receipt-backend --replicas=1
-          kubectl apply -f kubernetes/service.yaml
+          
+          # Wait for rollout to complete
           kubectl rollout status deployment/receipt-backend

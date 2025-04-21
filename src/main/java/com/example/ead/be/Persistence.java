@@ -48,8 +48,8 @@ public class Persistence {
   public Persistence()
   {
     // Try using local MongoDB since we're having authentication issues with Atlas
-    String connString = System.getenv().getOrDefault("databaseUrl", "mongodb://localhost:27017");
-    String dbName = "ead_ca2";
+    String connString = System.getenv().getOrDefault("SPRING_DATA_MONGODB_URI", "mongodb://localhost:27017");
+    String dbName = System.getenv().getOrDefault("SPRING_DATA_MONGODB_DATABASE", "ead_ca2");
     String collection = "ead_2024";
     initMongoDBClient(connString, dbName, collection);
   }
