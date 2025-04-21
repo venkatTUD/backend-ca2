@@ -21,6 +21,8 @@
 		<mongodb.collection>default-value-for-local-dev</mongodb.collection>
 		<!-- Skip Git plugin in IDE -->
 		<skipGit>true</skipGit>
+		<!-- Build timestamp for versioning -->
+		<maven.build.timestamp.format>yyyyMMdd-HHmmss</maven.build.timestamp.format>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -79,33 +81,30 @@
 						<image>ghcr.io/venkatakurathitud/receipt-backend</image>
 						<tags>
 							<tag>latest</tag>
-							<!-- Use the git SHA when available, otherwise use dev-build -->
-							<tag>${git.commit.id.abbrev:-dev-build}</tag>
+							<!-- Use Git commit ID, project version, or timestamp as fallbacks -->
+							<tag>${git.commit.id.abbrev}</tag>
 						</tags>
 					</to>
 				</configuration>
 			</plugin>
+
 			<plugin>
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
 				<version>4.9.10</version>
 				<executions>
 					<execution>
-						<id>get-the-git-infos</id>
 						<goals>
 							<goal>revision</goal>
 						</goals>
-						<phase>initialize</phase>
 					</execution>
 				</executions>
 				<configuration>
+					<verbose>true</verbose>
+					<abbrevLength>7</abbrevLength>
+					<dateFormat>yyyyMMdd-HHmmss</dateFormat>
 					<generateGitPropertiesFile>true</generateGitPropertiesFile>
-					<generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-					<commitIdGenerationMode>full</commitIdGenerationMode>
-					<failOnNoGitDirectory>false</failOnNoGitDirectory>
-					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
-					<!-- Skip execution in Eclipse IDE -->
-					<skip>${skipGit}</skip>
+					<dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
 				</configuration>
 			</plugin>
 		</plugins>
