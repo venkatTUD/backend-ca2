@@ -85,8 +85,8 @@
 							<tag>${git.commit.id.abbrev}</tag>
 						</tags>
 						<auth>
-							<username>${env.REPO_USERNAME}</username>
-							<password>${env.REPO_TOKEN}</password>
+							<username>${env.DOCKERHUB_USERID}</username>
+							<password>${env.DOCKERHUB_TOKEN}</password>
 						</auth>
 					</to>
 				</configuration>
