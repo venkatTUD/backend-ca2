@@ -54,13 +54,6 @@ public class Persistence {
     initMongoDBClient(connString, dbName, collection);
   }
 
-  // public Persistence() {
-  //   String connString = System.getenv().getOrDefault("databaseUrl", "mongodb://mongo:27017");  // mongo is the Docker service name
-  //   String dbName = "ead_ca2";
-  //   String collection = "ead_2024";
-  //   initMongoDBClient(connString, dbName, collection);
-  // }
-
   public Persistence(String connString, String dbName, String colName)
   {
     initMongoDBClient(connString, dbName, colName);

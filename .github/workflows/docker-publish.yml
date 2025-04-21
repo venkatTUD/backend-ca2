@@ -11,6 +11,7 @@ env:
   IMAGE_NAME: receipt-backend
   DOCKER_REGISTRY: docker.io
   SONAR_HOST_URL: https://sonarcloud.io
+  DO_CLUSTER_NAME: receipt-cluster
 
 jobs:
   build:
@@ -96,3 +97,28 @@ jobs:
           severity: 'CRITICAL,HIGH'
           token-setup-trivy: ${{ secrets.REPO_TOKEN }}
         continue-on-error: true # <-- This allows the job to continue even if Trivy exits with 1
+
+      # Step 9: Install doctl for Digital Ocean API interactions
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      # Step 10: Configure kubectl with Digital Ocean Kubernetes cluster
+      - name: Configure kubectl
+        run: doctl kubernetes cluster kubeconfig save ${{ env.DO_CLUSTER_NAME }} 
+
+      # # Step 11: Update deployment manifest with new image tag
+      # - name: Update deployment image
+      #   run: |
+      #     # Replace with your actual deployment manifest path
+      #     sed -i 's|venkatakurathitud/receipt-backend:.*|venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}|' kubernetes/deployment.yaml
+
+      # Step 12: Deploy to Kubernetes
+      - name: Deploy to Digital Ocean Kubernetes
+        run: |
+          kubectl apply -f kubernetes/deployment.yaml
+          kubectl scale deployment/receipt-backend --replicas=0
+          kubectl scale deployment/receipt-backend --replicas=1
+          kubectl apply -f kubernetes/service.yaml
+          kubectl rollout status deployment/receipt-backend
