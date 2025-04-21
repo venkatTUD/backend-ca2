@@ -64,22 +64,12 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=venkatTUD_backend-ca2
 
-      # Step 5: Run SonarQube Analysis
-      # Requires SONAR_HOST_URL and SONAR_TOKEN secrets
-      # - name: Run SonarQube Analysis
-      #   if: env.SONAR_TOKEN != null && env.SONAR_HOST_URL != null # Only run if secrets are provided
-      #   run: |
-      #     mvn sonar:sonar \
-      #       -Dsonar.projectKey='venkatTUD_backend-ca2' \
-      #       -Dsonar.organization='venkattud'
-      #   env: # Set SonarQube specific environment variables
-      #     GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }} # Needed for GitHub integration (e.g., PR decoration)
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
       # Step 6: Run OWASP Dependency Check (Optional but Recommended)
       # Scans project dependencies for known vulnerabilities
       - name: Run OWASP Dependency Check
         run: mvn org.owasp:dependency-check-maven:check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       # Step 7: Package and publish Docker image with Jib
       - name: Package and publish Docker image with Jib
