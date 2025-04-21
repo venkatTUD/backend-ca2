@@ -117,6 +117,7 @@ jobs:
       # Step 12: Deploy to Kubernetes
       - name: Deploy to Digital Ocean Kubernetes
         run: |
+          kubectl apply -f kubernetes/secret.yaml
           kubectl apply -f kubernetes/deployment.yaml
           kubectl scale deployment/receipt-backend --replicas=0
           kubectl scale deployment/receipt-backend --replicas=1
