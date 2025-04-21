@@ -9,7 +9,7 @@ on:
 
 env:
   IMAGE_NAME: receipt-backend
-  DOCKER_REGISTRY: ghcr.io
+  DOCKER_REGISTRY: docker.io
 
 jobs:
   build:

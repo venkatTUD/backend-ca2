@@ -78,7 +78,7 @@
 						</environment>
 					</container>
 					<to>
-						<image>ghcr.io/venkatakurathitud/receipt-backend</image>
+						<image>docker.io/venkatakurathitud/receipt-backend</image>
 						<tags>
 							<tag>latest</tag>
 							<!-- Use Git commit ID, project version, or timestamp as fallbacks -->
