@@ -1,0 +1,68 @@
+name: Build and Publish Docker Image with Jib
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: recipes-backend
+  DOCKER_REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for git plugin
+
+      # Step 2: Get short SHA
+      - name: Get short SHA
+        id: sha
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      # Step 3: Set up JDK 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # Step 4: Build and test
+      - name: Build and test
+        run: mvn clean compile test
+
+      # Step 5: Package and publish Docker image with Jib
+      - name: Package and publish Docker image with Jib
+        run: |
+          echo "Building image with tag: latest and ${{ env.SHORT_SHA }}"
+          mvn package jib:build -DskipTests \
+            -Dmongodb.url="${{ secrets.MONGO_DB_URL }}" \
+            -Dmongodb.dbname="${{ secrets.MONGO_DB_NAME }}" \
+            -Dmongodb.collection="${{ secrets.MONGO_DB_COLLECTION }}"
+        env:
+          REPO_USERNAME: ${{ secrets.REPO_USERNAME }}
+          REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+          MONGO_DB_URL: ${{ secrets.MONGO_DB_URL }}         # MongoDB URL secret
+          MONGO_DB_NAME: ${{ secrets.MONGO_DB_NAME }}       # MongoDB Database secret
+          MONGO_DB_COLLECTION: ${{ secrets.MONGO_DB_COLLECTION }}  # MongoDB Collection secret
+
+      # Step 6: Scan container for vulnerabilities
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
