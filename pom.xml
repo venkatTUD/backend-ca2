@@ -55,6 +55,12 @@
 			<version>1.7.28</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-core</artifactId>
+			<version>10.1.35</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
