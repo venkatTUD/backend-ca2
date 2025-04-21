@@ -51,8 +51,8 @@ jobs:
             -Dmongodb.dbname="${{ secrets.MONGO_DB_NAME }}" \
             -Dmongodb.collection="${{ secrets.MONGO_DB_COLLECTION }}"
         env:
-          REPO_USERNAME: ${{ secrets.REPO_USERNAME }}
-          REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+          DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           MONGO_DB_URL: ${{ secrets.MONGO_DB_URL }}         # MongoDB URL secret
           MONGO_DB_NAME: ${{ secrets.MONGO_DB_NAME }}       # MongoDB Database secret
           MONGO_DB_COLLECTION: ${{ secrets.MONGO_DB_COLLECTION }}  # MongoDB Collection secret
