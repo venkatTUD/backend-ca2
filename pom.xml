@@ -61,6 +61,12 @@
 			<version>10.1.35</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-webmvc</artifactId>
+			<version>6.1.14</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
