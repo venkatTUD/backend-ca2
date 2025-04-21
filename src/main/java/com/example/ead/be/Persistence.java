@@ -45,10 +45,20 @@ public class Persistence {
   private MongoCollection<Recipe> collection = null;
 
   
-  // public Persistence()
-  // {
-  //   // User/Password should NOT be embedded in the code. I just do it for simplicity while taking care to give this user the least privilege to avoid security issues!
-  //   initMongoDBClient("mongodb+srv://ead2024:ead2024.@ead-2023-24.lpclwdo.mongodb.net/", "ead_ca2", "ead_2024");
+  public Persistence()
+  {
+    // Try using local MongoDB since we're having authentication issues with Atlas
+    String connString = System.getenv().getOrDefault("databaseUrl", "mongodb://localhost:27017");
+    String dbName = "ead_ca2";
+    String collection = "ead_2024";
+    initMongoDBClient(connString, dbName, collection);
+  }
+
+  // public Persistence() {
+  //   String connString = System.getenv().getOrDefault("databaseUrl", "mongodb://mongo:27017");  // mongo is the Docker service name
+  //   String dbName = "ead_ca2";
+  //   String collection = "ead_2024";
+  //   initMongoDBClient(connString, dbName, collection);
   // }
 
   public Persistence(String connString, String dbName, String colName)
@@ -151,7 +161,7 @@ public class Persistence {
 
   public static void main(String[] args) {
     Logger.getLogger( "org.mongodb.driver" ).setLevel(Level.WARNING);
-    ConnectionString mongoUri = new ConnectionString("mongodb+srv://ead2024:ead2024.@ead-2023-24.lpclwdo.mongodb.net/");
+    ConnectionString mongoUri = new ConnectionString("mongodb+srv://ead2024:ead2024@ead-2023-24.lpclwdo.mongodb.net/");
     String dbName = "ead_ca2";
     String collectionName = "ead_2024";
 

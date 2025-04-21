@@ -69,9 +69,10 @@
 					<container>
 						<mainClass>com.example.ead.be.Application</mainClass>
 						<environment>
-							<MONGO_DB_URL>${mongodb.url}</MONGO_DB_URL>
-							<MONGO_DB_NAME>${mongodb.dbname}</MONGO_DB_NAME>
-							<MONGO_DB_COLLECTION>${mongodb.collection}</MONGO_DB_COLLECTION>
+							<MONGODB_URI>${mongodb.url}</MONGODB_URI>
+							<MONGODB_DATABASE>${mongodb.dbname}</MONGODB_DATABASE>
+							<PORT>9090</PORT>
+							<MANAGEMENT_PORT>9090</MANAGEMENT_PORT>
 						</environment>
 					</container>
 					<to>
