@@ -23,6 +23,8 @@
 		<skipGit>true</skipGit>
 		<!-- Build timestamp for versioning -->
 		<maven.build.timestamp.format>yyyyMMdd-HHmmss</maven.build.timestamp.format>
+		<sonar.organization>venkattud</sonar.organization>
+		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 	</properties>
 	<dependencies>
 		<dependency>

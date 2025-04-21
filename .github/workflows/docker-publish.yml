@@ -45,17 +45,36 @@ jobs:
 
       # --- Static Code Analysis and Security Scanning Stages ---
 
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build and analyze
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=venkatTUD_backend-ca2
+
       # Step 5: Run SonarQube Analysis
       # Requires SONAR_HOST_URL and SONAR_TOKEN secrets
-      - name: Run SonarQube Analysis
-        if: env.SONAR_TOKEN != null && env.SONAR_HOST_URL != null # Only run if secrets are provided
-        run: |
-          mvn sonar:sonar \
-            -Dsonar.projectKey='venkatTUD_backend-ca2' \
-            -Dsonar.organization='venkattud'
-        env: # Set SonarQube specific environment variables
-          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }} # Needed for GitHub integration (e.g., PR decoration)
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # - name: Run SonarQube Analysis
+      #   if: env.SONAR_TOKEN != null && env.SONAR_HOST_URL != null # Only run if secrets are provided
+      #   run: |
+      #     mvn sonar:sonar \
+      #       -Dsonar.projectKey='venkatTUD_backend-ca2' \
+      #       -Dsonar.organization='venkattud'
+      #   env: # Set SonarQube specific environment variables
+      #     GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }} # Needed for GitHub integration (e.g., PR decoration)
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       # Step 6: Run OWASP Dependency Check (Optional but Recommended)
       # Scans project dependencies for known vulnerabilities
