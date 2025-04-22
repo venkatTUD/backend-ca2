@@ -126,6 +126,7 @@ jobs:
           
           # Apply Kubernetes configurations
           kubectl apply -f kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/service.yaml
 
 
       # # Step 11: Update deployment manifest with new image tag
