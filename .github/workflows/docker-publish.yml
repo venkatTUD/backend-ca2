@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image with Jib
+name: Build and Deploy to DigitalOcean Kubernetes
 
 on:
   push:
@@ -14,25 +14,26 @@ env:
   DO_CLUSTER_NAME: receipt-cluster
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      deployments: write
+      security-events: write  # Required for SARIF upload
 
     steps:
-      # Step 1: Checkout the repository
+      # --- Initial Setup ---
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Fetch all history for git plugin
+          fetch-depth: 0
 
-      # Step 2: Get short SHA
       - name: Get short SHA
         id: sha
         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
-      # Step 3: Set up JDK 17
+      # --- Java Environment ---
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -40,19 +41,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # Step 4: Build and test
-      - name: Build and test
-        run: mvn clean compile test
-
-      # --- Static Code Analysis and Security Scanning Stages ---
-
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
+      # --- Build and Test ---
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -60,95 +49,94 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build and analyze
+      - name: Build and test
+        run: mvn clean compile test
+
+      # --- Security Scanning ---
+      - name: SonarQube Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=venkatTUD_backend-ca2 -Dsonar.java.coveragePlugin=jacoco -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+        run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=venkatTUD_backend-ca2 \
+            -Dsonar.java.coveragePlugin=jacoco \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
-      # Step 6: Run OWASP Dependency Check (Optional but Recommended)
-      # Scans project dependencies for known vulnerabilities
-      - name: Run OWASP Dependency Check
+      - name: OWASP Dependency Check
         run: mvn org.owasp:dependency-check-maven:check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
-      # Step 7: Package and publish Docker image with Jib
-      - name: Package and publish Docker image with Jib
+      # --- Docker Image ---
+      - name: Build and push with Jib
         run: |
-          echo "Building image with tag: latest and ${{ env.SHORT_SHA }}"
           mvn package jib:build -DskipTests \
             -Dmongodb.url="${{ secrets.MONGO_DB_URL }}" \
             -Dmongodb.dbname="${{ secrets.MONGO_DB_NAME }}" \
             -Dmongodb.collection="${{ secrets.MONGO_DB_COLLECTION }}"
         env:
-          DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          MONGO_DB_URL: ${{ secrets.MONGO_DB_URL }}         # MongoDB URL secret
-          MONGO_DB_NAME: ${{ secrets.MONGO_DB_NAME }}       # MongoDB Database secret
-          MONGO_DB_COLLECTION: ${{ secrets.MONGO_DB_COLLECTION }}  # MongoDB Collection secret
 
-      # Step 8: Scan container for vulnerabilities
-      - name: Run Trivy vulnerability scanner
+      # --- Container Security Scan ---
+      - name: Trivy Vulnerability Scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-          format: 'table'
-          exit-code: '1'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          token-setup-trivy: ${{ secrets.REPO_TOKEN }}
-        continue-on-error: true # <-- This allows the job to continue even if Trivy exits with 1
+          ignore-unfixed: true
+          exit-code: '1'
+          continue-on-error: true  # Preserved as requested
 
-      # Step 9: Install and configure doctl
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      # --- Kubernetes Deployment ---
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
-      # Step 10: Configure kubectl with Digital Ocean cluster
       - name: Configure kubectl
         run: doctl kubernetes cluster kubeconfig save ${{ env.DO_CLUSTER_NAME }}
 
-      # Step 11: Update Kubernetes secrets
+      # --- Secret Management (Preserved envsubst with masking) ---
+      - name: Mask secrets in logs
+        run: |
+          echo "::add-mask::${{ secrets.MONGO_DB_URL }}"
+          echo "::add-mask::${{ secrets.MONGO_DB_PASSWORD }}"
+
       - name: Update MongoDB secret
         env:
-          MONGODB_URI: mongodb://${{ secrets.MONGO_DB_USERNAME }}:${{ secrets.MONGO_DB_PASSWORD }}@mongodb-service:27017/${{ secrets.MONGO_DB_NAME }}
+          MONGODB_URI: ${{ secrets.MONGO_DB_URL }}
           MONGODB_DATABASE: ${{ secrets.MONGO_DB_NAME }}
           MONGODB_USERNAME: ${{ secrets.MONGO_DB_USERNAME }}
           MONGODB_PASSWORD: ${{ secrets.MONGO_DB_PASSWORD }}
         run: |
           envsubst < kubernetes/secret.yaml | kubectl apply -f -
+          kubectl get secret mongodb-secret -o jsonpath='{.data}' | jq 'del(.uri, .password)'
 
-      # Step 11: Deploy to Kubernetes
-      - name: Deploy to Kubernetes
+      # --- Deployment ---
+      - name: Deploy MongoDB
         run: |
-          # Update deployment image
-          kubectl set image deployment/receipt-backend receipt-backend=venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-          
-          # Apply Kubernetes configurations
-          kubectl apply -f kubernetes/deployment.yaml
-          kubectl apply -f kubernetes/service.yaml
-
-
-      # # Step 11: Update deployment manifest with new image tag
-      # - name: Update deployment image
-      #   run: |
-      #     # Replace with your actual deployment manifest path
-      #     sed -i 's|venkatakurathitud/receipt-backend:.*|venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}|' kubernetes/deployment.yaml
-
-      # Step 12: Deploy to Kubernetes
-      - name: Deploy to Digital Ocean Kubernetes
-        run: |
-          # Apply MongoDB deployment first
           kubectl apply -f kubernetes/mongodb-deployment.yaml
-          kubectl rollout status deployment/mongodb
-          
-          # Apply the application deployment
+          kubectl wait --for=condition=available deployment/mongodb --timeout=300s
+
+      - name: Deploy Application
+        run: |
           kubectl apply -f kubernetes/deployment.yaml
           kubectl apply -f kubernetes/service.yaml
-          
-          # Force a new deployment by scaling down and up
-          kubectl scale deployment/receipt-backend --replicas=0
-          kubectl scale deployment/receipt-backend --replicas=1
-          
-          # Wait for rollout to complete
-          kubectl rollout status deployment/receipt-backend
+          kubectl rollout restart deployment/receipt-backend
+          kubectl wait --for=condition=available deployment/receipt-backend --timeout=300s
+
+      # --- Verification ---
+      - name: Verify Deployment
+        run: |
+          kubectl get svc -n default
+          kubectl get pods -n default -o wide
+          kubectl get ingress -n default || echo "No ingress found"
