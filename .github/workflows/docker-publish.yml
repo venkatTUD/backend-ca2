@@ -71,13 +71,13 @@ jobs:
       - name: Build and push with Jib
         run: |
           mvn package jib:build -DskipTests \
-            -Djib.to.auth.username=${{ secrets.DOCKERHUB_USERNAME }} \
+            -Djib.to.auth.username=${{ secrets.DOCKERHUB_USERID }} \
             -Djib.to.auth.password=${{ secrets.DOCKERHUB_TOKEN }} \
             -Dmongodb.url="${{ secrets.MONGO_DB_URL }}" \
             -Dmongodb.dbname="${{ secrets.MONGO_DB_NAME }}" \
             -Dmongodb.collection="${{ secrets.MONGO_DB_COLLECTION }}"
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # --- Container Security Scan ---
@@ -141,4 +141,3 @@ jobs:
         run: |
           kubectl get svc -n default
           kubectl get pods -n default -o wide
-          kubectl get ingress -n default || echo "No ingress found"
