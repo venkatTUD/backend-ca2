@@ -21,10 +21,27 @@ spec:
           - bash
           - -c
           - |
-            mongod --fork --logpath /tmp/mongod.log &&
-            sleep 5 &&
-            mongosh admin --eval 'db.createUser({ user: "'${MONGO_INITDB_ROOT_USERNAME}'", pwd: "'${MONGO_INITDB_ROOT_PASSWORD}'", roles: [{ role: "root", db: "admin" }] })' &&
-            mongosh admin --eval 'db.shutdownServer()'
+            set -e
+            echo "Starting mongod..."
+            mkdir -p /data/db
+            mongod --dbpath /data/db --fork --logpath /tmp/mongod.log
+            echo "Waiting for mongod to be ready..."
+            for i in {1..30}; do
+              if mongosh --quiet --eval "db.runCommand({ ping: 1 })" >/dev/null 2>&1; then
+                echo "mongod is ready"
+                break
+              fi
+              sleep 2
+              if [ $i -eq 30 ]; then
+                echo "mongod failed to start"
+                exit 1
+              fi
+            done
+            echo "Creating admin user..."
+            mongosh admin --eval "db.createUser({ user: '$MONGO_INITDB_ROOT_USERNAME', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'root', db: 'admin' }] })"
+            echo "Shutting down mongod..."
+            mongosh admin --eval "db.shutdownServer()" || true
+            echo "Init complete"
         env:
         - name: MONGO_INITDB_ROOT_USERNAME
           valueFrom:
@@ -36,6 +53,9 @@ spec:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-password
+        volumeMounts:
+        - name: mongo-data
+          mountPath: /data/db
       containers:
       - name: mongodb
         image: mongo:latest
@@ -55,6 +75,12 @@ spec:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-database
+        volumeMounts:
+        - name: mongo-data
+          mountPath: /data/db
+      volumes:
+      - name: mongo-data
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
