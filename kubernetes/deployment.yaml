@@ -30,8 +30,8 @@ spec:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-database
-        - name: SPRING_PROFILES_ACTIVE
-          value: "kubernetes"
+        # - name: SPRING_PROFILES_ACTIVE
+        #   value: "kubernetes"
         - name: JAVA_OPTS
           value: "-Dlogging.level.org.springframework.data.mongodb=DEBUG -Dlogging.level.org.mongodb.driver=DEBUG"
         resources:
