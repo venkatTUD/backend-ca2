@@ -30,13 +30,17 @@ spec:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-database
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes"
+        - name: JAVA_OPTS
+          value: "-Dlogging.level.org.springframework.data.mongodb=DEBUG -Dlogging.level.org.mongodb.driver=DEBUG"
         resources:
-          limits:
-            cpu: "200m"
-            memory: "256Mi"
           requests:
-            cpu: "100m"
-            memory: "128Mi"
+           memory: "256Mi"
+           cpu: "200m"
+          limits:
+           memory: "512Mi"
+           cpu: "500m"
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
@@ -49,7 +53,28 @@ spec:
             port: 9090
           initialDelaySeconds: 30
           periodSeconds: 5
-        resources:
-          limits:
-            cpu: "500m"
-            memory: "512Mi"
+
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: receipt-backend
+#   labels:
+#     app: receipt-backend
+# spec:
+#   template:
+#     spec:
+#       containers:
+#       - name: receipt-backend
+#         env:
+#         - name: SPRING_DATA_MONGODB_URI
+#           valueFrom:
+#             secretKeyRef:
+#               name: mongodb-secret
+#               key: mongodb-uri
+#         - name: SPRING_DATA_MONGODB_DATABASE
+#           valueFrom:
+#             secretKeyRef:
+#               name: mongodb-secret
+#               key: mongodb-database
+        # Add these new environment variables
+        

@@ -10,6 +10,8 @@ import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertManyResult;
+
+import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.bson.conversions.Bson;
@@ -45,14 +47,39 @@ public class Persistence {
   private MongoCollection<Recipe> collection = null;
 
   
-  public Persistence()
-  {
-    // Try using local MongoDB since we're having authentication issues with Atlas
-    String connString = System.getenv().getOrDefault("SPRING_DATA_MONGODB_URI", "mongodb://localhost:27017");
-    String dbName = System.getenv().getOrDefault("SPRING_DATA_MONGODB_DATABASE", "ead_ca2");
-    String collection = "ead_2024";
-    initMongoDBClient(connString, dbName, collection);
-  }
+  // public Persistence()
+  // {
+  //   // Try using local MongoDB since we're having authentication issues with Atlas
+  //   String connString = System.getenv().getOrDefault("SPRING_DATA_MONGODB_URI", "mongodb://localhost:27017");
+  //   String dbName = System.getenv().getOrDefault("SPRING_DATA_MONGODB_DATABASE", "ead_ca2");
+  //   String collection = "ead_2024";
+  //   initMongoDBClient(connString, dbName, collection);
+  // }
+
+  public Persistence() {
+    // Get connection details from Spring properties
+    String connString = System.getenv("SPRING_DATA_MONGODB_URI");
+    String dbName = System.getenv("SPRING_DATA_MONGODB_DATABASE");
+    String collectionName = "ead_2024";
+    
+    if (connString == null || dbName == null) {
+        throw new IllegalStateException("MongoDB configuration missing");
+    }
+    
+    System.out.println("Connecting to MongoDB with: " + connString);
+    initMongoDBClient(connString, dbName, collectionName);
+    
+    // Verify connection
+    try {
+        System.out.println("Connection test: " + 
+            database.runCommand(new Document("ping", 1)));
+        System.out.println("Initial document count: " + 
+            collection.countDocuments());
+    } catch (MongoException e) {
+        System.err.println("MongoDB connection failed: " + e.getMessage());
+        throw e;
+    }
+}
 
   public Persistence(String connString, String dbName, String colName)
   {
