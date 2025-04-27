@@ -38,9 +38,11 @@ spec:
               fi
             done
             echo "Creating admin user..."
-            mongosh admin --eval "db.createUser({ user: '$MONGO_INITDB_ROOT_USERNAME', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'root', db: 'admin' }] })"
+            mongosh --eval "db.createUser({ user: '$MONGO_INITDB_ROOT_USERNAME', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'root', db: 'admin' }] })" --authenticationDatabase=admin
+            echo "Creating ead_2024 database user..."
+            mongosh --eval "db = db.getSiblingDB('ead_2024'); db.createUser({ user: 'admin', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'dbOwner', db: 'ead_2024' }] })" --authenticationDatabase=admin
             echo "Shutting down mongod..."
-            mongosh admin --eval "db.shutdownServer()" || true
+            mongosh --eval "db.shutdownServer()" || true
             echo "Init complete"
         env:
         - name: MONGO_INITDB_ROOT_USERNAME
