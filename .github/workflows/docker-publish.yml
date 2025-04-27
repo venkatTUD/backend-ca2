@@ -123,18 +123,25 @@ jobs:
           envsubst < kubernetes/secret.yaml | kubectl apply -f -
           kubectl get secret mongodb-secret -o jsonpath='{.data}' | jq 'del(.uri, .password)'
 
-      # --- Deployment ---
-      - name: Deploy MongoDB
+          - name: Deploy MongoDB
+          run: |
+            kubectl apply -f kubernetes/mongodb-deployment.yaml
+            kubectl wait --for=condition=available deployment/mongodb --timeout=300s
+  
+      - name: Deploy Application # <--- Modify this step back
+          # Remove the 'env' block for RECEIPT_BACKEND_IMAGE_TAG
         run: |
-          kubectl apply -f kubernetes/mongodb-deployment.yaml
-          kubectl wait --for=condition=available deployment/mongodb --timeout=300s
-
-      - name: Deploy Application
-        run: |
-          kubectl apply -f kubernetes/deployment.yaml
-          kubectl apply -f kubernetes/service.yaml
-          kubectl rollout restart deployment/receipt-backend
-          kubectl wait --for=condition=available deployment/receipt-backend --timeout=300s
+            # Simply apply the deployment YAML directly
+            kubectl apply -f kubernetes/deployment.yaml
+            # Apply the service separately
+            kubectl apply -f kubernetes/service.yaml
+  
+            # Trigger a rolling restart (this will pull the image tagged ':latest')
+            kubectl rollout restart deployment/receipt-backend
+            # Wait for the deployment to become available
+            kubectl wait --for=condition=available deployment/receipt-backend --timeout=300s
+  
+  
 
       # --- Verification ---
       - name: Verify Deployment

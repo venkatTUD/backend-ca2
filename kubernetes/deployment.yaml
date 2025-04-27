@@ -53,28 +53,3 @@ spec:
             port: 9090
           initialDelaySeconds: 30
           periodSeconds: 5
-
-# apiVersion: apps/v1
-# kind: Deployment
-# metadata:
-#   name: receipt-backend
-#   labels:
-#     app: receipt-backend
-# spec:
-#   template:
-#     spec:
-#       containers:
-#       - name: receipt-backend
-#         env:
-#         - name: SPRING_DATA_MONGODB_URI
-#           valueFrom:
-#             secretKeyRef:
-#               name: mongodb-secret
-#               key: mongodb-uri
-#         - name: SPRING_DATA_MONGODB_DATABASE
-#           valueFrom:
-#             secretKeyRef:
-#               name: mongodb-secret
-#               key: mongodb-database
-        # Add these new environment variables
-        
