@@ -1,12 +1,11 @@
-// POJO (Plain Old Java Object) class defining a recipe. This class is a POJO because it contains getters and
-// setters for every member variable as well as an empty constructor.
-
 package com.example.ead.be;
 
+import org.bson.types.ObjectId;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Recipe {
+    private ObjectId id;
     private String name;
     private List<String> ingredients;
     private int prepTimeInMinutes;
@@ -17,21 +16,28 @@ public class Recipe {
         this.prepTimeInMinutes = prepTimeInMinutes;
     }
 
-    // empty constructor required when we fetch data from the database -- getters and setters are later used to
-    // set values for member variables
     public Recipe() {
-        ingredients = new ArrayList<String>();
-        name = "";
+        this.ingredients = new ArrayList<>();
+        this.name = "";
     }
 
     @Override
     public String toString() {
         final StringBuffer sb = new StringBuffer("Recipe{");
-        sb.append("name=").append(name);
+        sb.append("id=").append(id != null ? id.toHexString() : null);
+        sb.append(", name=").append(name);
         sb.append(", ingredients=").append(ingredients);
         sb.append(", prepTimeInMinutes=").append(prepTimeInMinutes);
         sb.append('}');
         return sb.toString();
+    }
+
+    public ObjectId getId() {
+        return id;
+    }
+
+    public void setId(ObjectId id) {
+        this.id = id;
     }
 
     public String getName() {

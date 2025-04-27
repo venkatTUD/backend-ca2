@@ -20,27 +20,25 @@ spec:
         ports:
         - containerPort: 9090
         env:
-        - name: SPRING_DATA_MONGODB_URI
+        - name: MONGO_URI
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-uri
-        - name: SPRING_DATA_MONGODB_DATABASE
+        - name: MONGO_DATABASE
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-database
-        # - name: SPRING_PROFILES_ACTIVE
-        #   value: "kubernetes"
         - name: JAVA_OPTS
           value: "-Dlogging.level.org.springframework.data.mongodb=DEBUG -Dlogging.level.org.mongodb.driver=DEBUG"
         resources:
           requests:
-           memory: "256Mi"
-           cpu: "200m"
+            memory: "256Mi"
+            cpu: "200m"
           limits:
-           memory: "512Mi"
-           cpu: "500m"
+            memory: "512Mi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
