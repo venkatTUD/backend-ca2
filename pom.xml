@@ -113,7 +113,34 @@
 					</excludes>
 				</configuration>
 			</plugin>
+
 			<plugin>
+				<groupId>com.google.cloud.tools</groupId>
+				<artifactId>jib-maven-plugin</artifactId>
+				<version>3.4.0</version>
+				<configuration>
+					<container>
+						<mainClass>com.example.ead.be.Application</mainClass>
+						<environment>
+							<PORT>9090</PORT>
+							<MANAGEMENT_PORT>9090</MANAGEMENT_PORT>
+						</environment>
+					</container>
+					<to>
+						<image>docker.io/venkatakurathitud/receipt-backend</image>
+						<tags>
+							<tag>${git.commit.id.abbrev}</tag>
+							<tag>latest</tag>
+						</tags>
+						<auth>
+							<username>${env.DOCKERHUB_USERID}</username>
+							<password>${env.DOCKERHUB_TOKEN}</password>
+						</auth>
+					</to>
+				</configuration>
+			</plugin>
+
+			<!-- <plugin>
 				<groupId>com.google.cloud.tools</groupId>
 				<artifactId>jib-maven-plugin</artifactId>
 				<version>3.4.0</version>
@@ -131,7 +158,6 @@
 						<image>docker.io/venkatakurathitud/receipt-backend</image>
 						<tags>
 							<tag>latest</tag>
-							<!-- Use Git commit ID, project version, or timestamp as fallbacks -->
 							<tag>${git.commit.id.abbrev}</tag>
 						</tags>
 						<auth>
@@ -140,7 +166,7 @@
 						</auth>
 					</to>
 				</configuration>
-			</plugin>
+			</plugin> -->
 
 			<plugin>
 				<groupId>pl.project13.maven</groupId>
