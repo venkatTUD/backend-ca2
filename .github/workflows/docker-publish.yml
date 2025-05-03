@@ -98,10 +98,10 @@ jobs:
 
       - name: Update MongoDB secret
         env:
-          MONGODB_URI: ${{ secrets.MONGO_DB_URL }}
-          MONGODB_DATABASE: ${{ secrets.MONGO_DB_NAME }}
-          MONGODB_USERNAME: ${{ secrets.MONGO_DB_USERNAME }}
-          MONGODB_PASSWORD: ${{ secrets.MONGO_DB_PASSWORD }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DATABASE: ${{ secrets.MONGODB_NAME }}
+          MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
           MONGO_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
         run: |
           envsubst < kubernetes/mongo-secret.yaml | kubectl apply -f -
