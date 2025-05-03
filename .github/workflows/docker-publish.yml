@@ -102,9 +102,21 @@ jobs:
           MONGODB_DATABASE: ${{ secrets.MONGO_DB_NAME }}
           MONGODB_USERNAME: ${{ secrets.MONGO_DB_USERNAME }}
           MONGODB_PASSWORD: ${{ secrets.MONGO_DB_PASSWORD }}
+          MONGO_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
         run: |
-          envsubst < kubernetes/secret.yaml | kubectl apply -f -
+          envsubst < kubernetes/mongo-secret.yaml | kubectl apply -f -
           kubectl get secret mongodb-secret -o jsonpath='{.data}' | jq 'del(.uri, .password)'
+        
+
+      # - name: Update MongoDB secret
+      #   env:
+      #     MONGODB_URI: ${{ secrets.MONGO_DB_URL }}
+      #     MONGODB_DATABASE: ${{ secrets.MONGO_DB_NAME }}
+      #     MONGODB_USERNAME: ${{ secrets.MONGO_DB_USERNAME }}
+      #     MONGODB_PASSWORD: ${{ secrets.MONGO_DB_PASSWORD }}
+      #   run: |
+      #     envsubst < kubernetes/secret.yaml | kubectl apply -f -
+      #     kubectl get secret mongodb-secret -o jsonpath='{.data}' | jq 'del(.uri, .password)'
 
       - name: Deploy MongoDB
         run: |
