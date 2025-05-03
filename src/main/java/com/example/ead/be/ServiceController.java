@@ -9,7 +9,11 @@ import java.util.List;
 @RestController
 public class ServiceController {
 
-	private final Persistence p = new Persistence(); // Use default constructor that connects to local Mongo
+	private  Persistence p = new Persistence(); // Use default constructor that connects to local Mongo
+
+	public ServiceController(Persistence p) { // Use constructor injection
+        this.p = p;
+    }
 
 	@GetMapping("/")
 	public String index() {
