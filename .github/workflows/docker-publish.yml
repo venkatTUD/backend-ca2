@@ -104,7 +104,7 @@ jobs:
              MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
              MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
            run: |
-             envsubst < kubernetes/secret.yaml | kubectl apply -f -
+             envsubst < kubernetes/mongo-secret.yaml | kubectl apply -f -
              kubectl get secret mongodb-secret -o jsonpath='{.data}' | jq 'del(.MONGODB_URI, .MONGODB_PASSWORD)'
 
          - name: Deploy MongoDB
