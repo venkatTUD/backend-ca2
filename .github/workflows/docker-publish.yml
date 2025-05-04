@@ -1,13 +1,13 @@
 name: Build and Deploy to DigitalOcean Kubernetes
 
-   on:
-     push:
+on:
+  push:
        branches: ["main"]
-     pull_request:
+  pull_request:
        branches: ["main"]
-     workflow_dispatch:
+  workflow_dispatch:
 
-   env:
+env:
      IMAGE_NAME: receipt-backend
      DOCKER_REGISTRY: docker.io
      SONAR_HOST_URL: https://sonarcloud.io
@@ -18,7 +18,7 @@ name: Build and Deploy to DigitalOcean Kubernetes
      MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
      MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
 
-   jobs:
+jobs:
      build-and-deploy:
        runs-on: ubuntu-latest
        permissions:
