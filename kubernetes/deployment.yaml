@@ -29,27 +29,27 @@ spec:
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGODB_URI  # Match GitHub Secrets
+              key: MONGODB_URI
         - name: MONGO_DATABASE
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: MONGODB_DATABASE
-        - name: MONGO_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: MONGO_USERNAME
-        - name: MONGODB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: MONGO_PASSWORD
         - name: MONGO_COLLECTION
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGO_COLLECTION
+              key: MONGODB_COLLECTION
+        - name: MONGO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: MONGODB_USERNAME
+        - name: MONGO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: MONGODB_PASSWORD
         - name: JAVA_OPTS
           value: "-Dlogging.level.org.springframework.data.mongodb=DEBUG -Dlogging.level.org.mongodb.driver=DEBUG"
         resources:
