@@ -25,32 +25,31 @@ spec:
         ports:
         - containerPort: 9090
         env:
-        - name: MONGODB_URI
+        - name: MONGO_URI
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: MONGODB_URI  # Match GitHub Secrets
-        - name: MONGODB_DATABASE
+        - name: MONGO_DATABASE
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: MONGODB_DATABASE
-        - name: MONGODB_USERNAME
+        - name: MONGO_USERNAME
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGODB_USERNAME
+              key: MONGO_USERNAME
         - name: MONGODB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGODB_PASSWORD
+              key: MONGO_PASSWORD
         - name: MONGO_COLLECTION
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: MONGO_COLLECTION
-
         - name: JAVA_OPTS
           value: "-Dlogging.level.org.springframework.data.mongodb=DEBUG -Dlogging.level.org.mongodb.driver=DEBUG"
         resources:

@@ -5,6 +5,8 @@ metadata:
   labels:
     app: mongodb
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
@@ -14,75 +16,79 @@ spec:
       labels:
         app: mongodb
     spec:
-      initContainers:
-      - name: init-mongo
-        image: mongo:latest
-        command:
-          - bash
-          - -c
-          - |
-            set -e
-            echo "Starting mongod..."
-            mkdir -p /data/db
-            mongod --dbpath /data/db --fork --logpath /tmp/mongod.log
-            echo "Waiting for mongod to be ready..."
-            for i in {1..30}; do
-              if mongosh --quiet --eval "db.runCommand({ ping: 1 })" >/dev/null 2>&1; then
-                echo "mongod is ready"
-                break
-              fi
-              sleep 2
-              if [ $i -eq 30 ]; then
-                echo "mongod failed to start"
-                exit 1
-              fi
-            done
-            echo "Creating admin user..."
-            mongosh --eval "db.createUser({ user: '$MONGO_INITDB_ROOT_USERNAME', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'root', db: 'admin' }] })" --authenticationDatabase=admin
-            echo "Creating ead_2024 database user..."
-            mongosh --eval "db = db.getSiblingDB('ead_2024'); db.createUser({ user: 'admin', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'dbOwner', db: 'ead_2024' }] })" --authenticationDatabase=admin
-            echo "Shutting down mongod..."
-            mongosh --eval "db.shutdownServer()" || true
-            echo "Init complete"
-        env:
-        - name: MONGO_INITDB_ROOT_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: mongodb-username
-        - name: MONGO_INITDB_ROOT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: mongodb-password
-        volumeMounts:
-        - name: mongo-data
-          mountPath: /data/db
-      containers:
-      - name: mongodb
-        image: mongo:latest
-        command: ["mongod", "--wiredTigerCacheSizeGB=0.25", "--bind_ip_all", "--auth"]
-        ports:
-        - containerPort: 27017
-        resources:
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-          requests:
-            memory: "256Mi"
-            cpu: "200m"
-        env:
-        - name: MONGO_INITDB_DATABASE
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: mongodb-database
-        volumeMounts:
-        - name: mongo-data
-          mountPath: /data/db
+      securityContext:
+        fsGroup: 999  # Ensures the volume files are accessible by the MongoDB process
       volumes:
-      - name: mongo-data
-        emptyDir: {}
+        - name: mongo-data
+          persistentVolumeClaim:
+            claimName: mongodb-pvc
+      initContainers:
+        - name: init-mongo
+          image: mongo:latest
+          command:
+            - bash
+            - -c
+            - |
+              set -e
+              echo "Starting mongod for initialization..."
+              mkdir -p /data/db
+              # Skip initialization if already done
+              if [ -f /data/db/initialized ]; then
+                echo "Database already initialized. Exiting init container."
+                exit 0
+              fi
+              mongod --dbpath /data/db --logpath /tmp/mongod.log --bind_ip_all --fork
+              echo "Waiting for MongoDB to start..."
+              until mongosh --quiet --eval "db.runCommand({ ping: 1 })" >/dev/null 2>&1; do
+                echo "MongoDB is not ready, waiting..."
+                sleep 2
+              done
+              echo "MongoDB is ready!"
+              echo "Creating admin user..."
+              mongosh --eval "db.createUser({ user: '$MONGO_INITDB_ROOT_USERNAME', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'root', db: 'admin' }] })" --authenticationDatabase=admin || true
+              echo "Creating ead_2024 database user..."
+              mongosh --eval "db = db.getSiblingDB('ead_2024'); db.createUser({ user: 'admin', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'dbOwner', db: 'ead_2024' }] })" --authenticationDatabase=admin || true
+              echo "Shutting down mongod..."
+              mongosh --eval "db.shutdownServer()" || true
+              # Mark the database as initialized
+              touch /data/db/initialized
+              echo "Init complete"
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongodb-username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongodb-password
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+      containers:
+        - name: mongodb
+          image: mongo:latest
+          command: ["mongod", "--bind_ip_all", "--auth"]
+          ports:
+            - containerPort: 27017
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          env:
+            - name: MONGO_INITDB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongodb-database
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
 ---
 apiVersion: v1
 kind: Service

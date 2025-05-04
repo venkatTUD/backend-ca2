@@ -91,10 +91,10 @@ jobs:
       - name: Configure kubectl
         run: doctl kubernetes cluster kubeconfig save ${{ env.DO_CLUSTER_NAME }}
 
-      - name: Mask secrets in logs
-        run: |
-          echo "::add-mask::${{ secrets.MONGO_DB_URL }}"
-          echo "::add-mask::${{ secrets.MONGO_DB_PASSWORD }}"
+      # - name: Mask secrets in logs
+      #   run: |
+      #     echo "::add-mask::${{ secrets.MONGO_DB_URL }}"
+      #     echo "::add-mask::${{ secrets.MONGO_DB_PASSWORD }}"
 
       - name: Update MongoDB secret
         env:
