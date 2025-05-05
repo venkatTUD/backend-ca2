@@ -15,7 +15,7 @@ env:
      # Keep secrets here for easy access in steps
      MONGODB_URI: ${{ secrets.MONGODB_URI }}
      MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
-     MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
+     MONGODB_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
      MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
      MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
 
