@@ -1,10 +1,10 @@
 # Here is the updated GitHub Actions workflow YAML to deploy your application and MongoDB using Helm to the dev namespace, based on your provided Helm chart files.name: Build and Deploy to DigitalOcean Kubernetes
 
 on:
-  push:
-       branches: ["main"]
-  pull_request:
-       branches: ["main"]
+  # push:
+  #      branches: ["main"]
+  # pull_request:
+  #      branches: ["main"]
   workflow_dispatch:
 
 env:
