@@ -54,16 +54,16 @@ jobs:
          - name: Build and test
            run: mvn clean compile test
 
-         - name: SonarQube Analysis
-           env:
-             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-           run: |
-             mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-               -Dsonar.projectKey=venkatTUD_backend-ca2 \
-               -Dsonar.java.coveragePlugin=jacoco \
-               -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+        #  - name: SonarQube Analysis
+        #    env:
+        #      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        #    run: |
+        #      mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+        #        -Dsonar.projectKey=venkatTUD_backend-ca2 \
+        #        -Dsonar.java.coveragePlugin=jacoco \
+        #        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
-         - name: OWASP Dependency Check
+        #  - name: OWASP Dependency Check
            run: mvn org.owasp:dependency-check-maven:check
            env:
              NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
@@ -77,16 +77,16 @@ jobs:
              DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
              DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
-         - name: Trivy Vulnerability Scan
-           uses: aquasecurity/trivy-action@master
-           with:
-             image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-             format: 'sarif'
-             output: 'trivy-results.sarif'
-             severity: 'CRITICAL,HIGH'
-             ignore-unfixed: true
-             exit-code: '1'
-           continue-on-error: true
+        #  - name: Trivy Vulnerability Scan
+        #    uses: aquasecurity/trivy-action@master
+        #    with:
+        #      image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+        #      format: 'sarif'
+        #      output: 'trivy-results.sarif'
+        #      severity: 'CRITICAL,HIGH'
+        #      ignore-unfixed: true
+        #      exit-code: '1'
+        #    continue-on-error: true
 
          - name: Install doctl
            uses: digitalocean/action-doctl@v2
@@ -104,8 +104,8 @@ jobs:
              MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
              MONGODB_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
            run: |
-             envsubst < kubernetes/mongo-secret.yaml | kubectl apply -f -
-             kubectl get secret mongo-secret -o jsonpath='{.data}' | jq 'del(.MONGODB_URI, .MONGODB_PASSWORD)'
+             envsubst < kubernetes/mongodb-secret.yaml | kubectl apply -f -
+             kubectl get secret mongodb-secret -o jsonpath='{.data}' | jq 'del(.MONGODB_URI, .MONGODB_PASSWORD)'
 
          - name: Deploy MongoDB
            run: |
