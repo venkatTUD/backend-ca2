@@ -108,6 +108,12 @@ jobs:
              kubectl get secret mongodb-secret -o jsonpath='{.data}' | jq 'del(.MONGODB_URI, .MONGODB_PASSWORD)'
 
          - name: Deploy MongoDB
+           env:
+            MONGODB_URI: ${{ secrets.MONGODB_URI }}
+            MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+            MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+            MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+            MONGODB_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
            run: |
              kubectl apply -f kubernetes/mongodb-deployment.yaml
              kubectl wait --for=condition=available deployment/mongodb --timeout=300s
