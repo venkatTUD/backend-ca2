@@ -4,6 +4,8 @@ metadata:
   name: receipt-backend
   labels:
     app: receipt-backend
+    version: ${SHORT_SHA}
+    environment: production
 spec:
   replicas: 2
   strategy:
