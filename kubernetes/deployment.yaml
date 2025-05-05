@@ -29,27 +29,27 @@ spec:
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGODB_URI
+              key: mongodb-uri
         - name: MONGO_DATABASE
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGODB_DATABASE
+              key: mongodb-database
         - name: MONGO_COLLECTION
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGODB_COLLECTION
+              key: mongodb-collection
         - name: MONGO_USERNAME
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGODB_USERNAME
+              key: mongodb-username
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
-              key: MONGODB_PASSWORD
+              key: mongodb-password
         - name: JAVA_OPTS
           value: "-Dlogging.level.org.springframework.data.mongodb=DEBUG -Dlogging.level.org.mongodb.driver=DEBUG"
         resources:
