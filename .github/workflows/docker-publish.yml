@@ -102,7 +102,7 @@ jobs:
              MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
              MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
              MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
-             MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
+             MONGODB_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
            run: |
              envsubst < kubernetes/mongo-secret.yaml | kubectl apply -f -
              kubectl get secret mongo-secret -o jsonpath='{.data}' | jq 'del(.MONGODB_URI, .MONGODB_PASSWORD)'
