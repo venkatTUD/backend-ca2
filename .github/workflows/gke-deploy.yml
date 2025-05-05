@@ -15,7 +15,7 @@ env:
   GKE_REGION: us-central1              # 🔁 Replace if different
   MONGODB_URI: ${{ secrets.MONGODB_URI }}
   MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
-  MONGODB_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
+  MONGO_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
   MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
   MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
 
