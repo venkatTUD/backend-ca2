@@ -1,0 +1,164 @@
+# Here is the updated GitHub Actions workflow YAML to deploy your application and MongoDB using Helm to the dev namespace, based on your provided Helm chart files.name: Build and Deploy to DigitalOcean Kubernetes
+
+on:
+  push:
+       branches: ["main"]
+  pull_request:
+       branches: ["main"]
+  workflow_dispatch:
+
+env:
+     IMAGE_NAME: receipt-backend
+     DOCKER_REGISTRY: docker.io # Or your preferred registry if different
+     SONAR_HOST_URL: https://sonarcloud.io
+     DO_CLUSTER_NAME: receipt-cluster
+     # Keep secrets here for easy access in steps
+     MONGODB_URI: ${{ secrets.MONGODB_URI }}
+     MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+     MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
+     MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+     MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+
+jobs:
+     build-and-deploy:
+       runs-on: ubuntu-latest
+       permissions:
+         contents: read
+         packages: write
+         deployments: write
+         security-events: write
+
+       steps:
+         - name: Checkout repository
+           uses: actions/checkout@v3
+           with:
+             fetch-depth: 0
+
+         - name: Get short SHA
+           id: sha
+           run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+         - name: Set up JDK 17
+           uses: actions/setup-java@v3
+           with:
+             java-version: '17'
+             distribution: 'temurin'
+             cache: maven
+
+         - name: Cache Maven packages
+           uses: actions/cache@v4
+           with:
+             path: ~/.m2
+             key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+             restore-keys: ${{ runner.os }}-m2
+
+         - name: Build and test
+           run: mvn clean compile test
+
+         - name: SonarQube Analysis
+           env:
+             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+           run: |
+             mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+               -Dsonar.projectKey=venkatTUD_backend-ca2 \
+               -Dsonar.java.coveragePlugin=jacoco \
+               -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+
+         - name: OWASP Dependency Check
+           run: mvn org.owasp:dependency-check-maven:check
+           env:
+             NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+         - name: Build and push with Jib
+           run: |
+             mvn package jib:build -DskipTests \
+               -Djib.to.auth.username=${{ secrets.DOCKERHUB_USERID }} \
+               -Djib.to.auth.password=${{ secrets.DOCKERHUB_TOKEN }} \
+               -Djib.to.image=${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+           env:
+             DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
+             DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+         - name: Trivy Vulnerability Scan
+           uses: aquasecurity/trivy-action@master
+           with:
+             image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+             format: 'sarif'
+             output: 'trivy-results.sarif'
+             severity: 'CRITICAL,HIGH'
+             ignore-unfixed: true
+             exit-code: '1'
+           continue-on-error: true
+
+         - name: Install doctl
+           uses: digitalocean/action-doctl@v2
+           with:
+             token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+         - name: Configure kubectl
+           run: doctl kubernetes cluster kubeconfig save ${{ env.DO_CLUSTER_NAME }}
+
+         # --- Helm Deployment Starts Here ---
+
+         - name: Install Helm
+           uses: azure/setup-helm@v3 # Use a standard action to install Helm
+           with:
+             version: 'latest' # You can specify a version like '3.x.x'
+
+         - name: Prepare Helm values for deployment
+           # Create a temporary values file to pass overrides to Helm
+           # The structure here matches your provided values.yaml and templates
+           run: |
+             cat <<EOF > values-override.yaml
+             namespace: dev # Explicitly set the namespace to 'dev'
+             image:
+               tag: "${{ env.SHORT_SHA }}"
+               repository: "${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}"
+               # pullPolicy is defaulted in your values.yaml, uncomment below to override
+               # pullPolicy: Always
+
+             mongodb:
+               username: "${{ secrets.MONGODB_USERNAME }}"
+               password: "${{ secrets.MONGODB_PASSWORD }}"
+               uri: "${{ secrets.MONGODB_URI }}"
+               database: "${{ secrets.MONGODB_DATABASE }}"
+               collection: "${{ secrets.MONGODB_COLLECTION }}"
+
+             # Uncomment and modify below to override other values if needed
+             # replicaCount: 3
+             # resources:
+             #   requests:
+             #     memory: "256Mi"
+             #     cpu: "200m"
+             #   limits:
+             #     memory: "512Mi"
+             #     cpu: "400m"
+             # javaOpts: "-Danother.option=true"
+             # service:
+             #   type: LoadBalancer
+             #   port: 8080
+             #   targetPort: 9090
+             EOF
+
+         - name: Deploy with Helm
+           # Use helm upgrade --install to deploy or update the release
+           # -f values-override.yaml passes the overrides
+           # --namespace dev specifies the target namespace
+           # --create-namespace will create the namespace if it doesn't exist
+           # --wait waits for all resources in the release to be ready
+           run: |
+             helm upgrade --install receipt-app ./helm \
+               --namespace dev \
+               --create-namespace \
+               -f values-override.yaml \
+               --wait # Waits for all resources in the release to be ready
+
+         # --- Helm Deployment Ends Here ---
+
+         - name: Verify Deployment
+           run: |
+             # Verify resources in the 'dev' namespace
+             kubectl get pods,svc,deployments.apps,secrets -n dev -o wide
+             # List Helm releases in the 'dev' namespace
+             helm list -n dev
+
