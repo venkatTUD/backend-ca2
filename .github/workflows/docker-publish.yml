@@ -64,9 +64,9 @@ jobs:
         #        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
         #  - name: OWASP Dependency Check
-           run: mvn org.owasp:dependency-check-maven:check
-           env:
-             NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          #  run: mvn org.owasp:dependency-check-maven:check
+          #  env:
+          #    NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
          - name: Build and push with Jib
            run: |
