@@ -100,12 +100,12 @@ jobs:
            env:
              MONGODB_URI: ${{ secrets.MONGODB_URI }}
              MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
-             MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
              MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
              MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+             MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
            run: |
              envsubst < kubernetes/mongo-secret.yaml | kubectl apply -f -
-             kubectl get secret mongodb-secret -o jsonpath='{.data}' | jq 'del(.MONGODB_URI, .MONGODB_PASSWORD)'
+             kubectl get secret mongo-secret -o jsonpath='{.data}' | jq 'del(.MONGODB_URI, .MONGODB_PASSWORD)'
 
          - name: Deploy MongoDB
            run: |
