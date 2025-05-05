@@ -72,7 +72,8 @@ jobs:
            run: |
              mvn package jib:build -DskipTests \
                -Djib.to.auth.username=${{ secrets.DOCKERHUB_USERID }} \
-               -Djib.to.auth.password=${{ secrets.DOCKERHUB_TOKEN }}
+               -Djib.to.auth.password=${{ secrets.DOCKERHUB_TOKEN }} \
+               -Djib.to.image=docker.io/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
            env:
              DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
              DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -117,15 +118,26 @@ jobs:
            run: |
              kubectl apply -f kubernetes/mongodb-deployment.yaml
              kubectl wait --for=condition=available deployment/mongodb --timeout=300s
-
+        
          - name: Deploy Application
+           env:
+            SHORT_SHA: ${{ env.SHORT_SHA }}
            run: |
-             kubectl apply -f kubernetes/deployment.yaml
-             kubectl apply -f kubernetes/service.yaml
-             kubectl rollout restart deployment/receipt-backend
-             kubectl wait --for=condition=available deployment/receipt-backend --timeout=300s
+              envsubst < kubernetes/deployment.yaml | kubectl apply -f -
+              kubectl apply -f kubernetes/service.yaml
+              kubectl rollout status deployment/receipt-backend --timeout=300s
+              kubectl rollout status deployment/receipt-backend
+           
+        #  - name: Deploy Application
+        #    env:
+        #     SHORT_SHA: ${{ env.SHORT_SHA }}
+        #    run: |
+        #      kubectl apply -f kubernetes/deployment.yaml
+        #      kubectl apply -f kubernetes/service.yaml
+        #      kubectl rollout restart deployment/receipt-backend
+        #      kubectl rollout status deployment/receipt-backend
+        #      kubectl wait --for=condition=available deployment/receipt-backend --timeout=300s
 
          - name: Verify Deployment
            run: |
-             kubectl get svc -n default
-             kubectl get pods -n default -o wide
+             kubectl get pods,svc,deployments.apps,secrets -o wide -n default
