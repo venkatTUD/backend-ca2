@@ -3,3 +3,11 @@ kind: Kustomization
 namespace: prod
 resources:
   - ../../base
+secretGenerator:
+- name: mongodb-secret
+  literals:
+  - mongodb-username=${MONGODB_USERNAME_PROD}
+  - mongodb-password=${MONGODB_PASSWORD_PROD}
+  - mongodb-uri=${MONGODB_URI_PROD}
+  - mongodb-database=${MONGODB_DATABASE_PROD}
+  - mongodb-collection=${MONGODB_COLLECTION_PROD}
