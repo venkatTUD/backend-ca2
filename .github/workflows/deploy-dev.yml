@@ -95,9 +95,15 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
       - name: Deploy to Dev
         run: |
-          cd k8s/overlays/dev
-          kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
-          kubectl apply -k .
+                cd k8s/overlays/dev
+                kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
+                kubectl apply -k .
+        env:
+                MONGODB_USERNAME_DEV: ${{ secrets.MONGODB_USERNAME }}
+                MONGODB_PASSWORD_DEV: ${{ secrets.MONGODB_PASSWORD }}
+                MONGODB_URI_DEV: ${{ secrets.MONGODB_URI }}
+                MONGODB_DATABASE_DEV: ${{ secrets.MONGODB_DATABASE }}
+                MONGODB_COLLECTION_DEV: ${{ secrets.MONGODB_COLLECTION }}
       - name: Verify Deployment
         run: |
           kubectl -n dev get pods,svc,deployments.apps,secrets -o wide

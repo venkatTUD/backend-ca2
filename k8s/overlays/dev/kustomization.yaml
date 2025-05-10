@@ -3,3 +3,11 @@ kind: Kustomization
 namespace: dev
 resources:
   - ../../base
+secretGenerator:
+- name: mongodb-secret
+  literals:
+  - mongodb-username=${MONGODB_USERNAME_DEV}
+  - mongodb-password=${MONGODB_PASSWORD_DEV}
+  - mongodb-uri=${MONGODB_URI_DEV}
+  - mongodb-database=${MONGODB_DATABASE_DEV}
+  - mongodb-collection=${MONGODB_COLLECTION_DEV}
