@@ -22,7 +22,6 @@ spec:
       labels:
         app: receipt-backend
     spec:
-      # Add the volumes section here
       volumes:
       - name: tmp-volume
         emptyDir: {} # Define an emptyDir volume named 'tmp-volume'
@@ -54,39 +53,41 @@ spec:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-username
+            # Ensure this matches the root user created by Mongo init
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-password
+            # Ensure this matches the root password created by Mongo init
         - name: JAVA_OPTS
+          # Note: DEBUG logging can increase memory usage. Keep this in mind.
           value: "-Dlogging.level.org.springframework.data.mongodb=DEBUG -Dlogging.level.org.mongodb.driver=DEBUG"
         resources:
           requests:
-            memory: "128Mi"
             cpu: "100m"
+            memory: "256Mi" # Increased request
           limits:
-            memory: "256Mi"
             cpu: "250m"
+            memory: "512Mi" # Increased limit - this is the critical change for OOMKill
         securityContext:
           runAsNonRoot: true
           runAsUser: 1000
-          readOnlyRootFilesystem: true # Keep this for security
+          readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
-        # Add volumeMounts to the container
         volumeMounts:
         - name: tmp-volume
-          mountPath: /tmp # Mount the emptyDir volume at /tmp
+          mountPath: /tmp
 
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
             port: 9090
-          initialDelaySeconds: 60
+          initialDelaySeconds: 60 # Consider slightly increasing delay if startup is slow
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /actuator/health/readiness
             port: 9090
-          initialDelaySeconds: 30
+          initialDelaySeconds: 30 # Consider slightly increasing delay if startup is slow
           periodSeconds: 5

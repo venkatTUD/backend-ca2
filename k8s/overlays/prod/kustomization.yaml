@@ -1,8 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: prod # Ensure the namespace is set
+namespace: prod
 resources:
-  - ../../base
+- ../../base
 
 # Removed secretGenerator - the secret will be created manually by the workflow
 # secretGenerator:
@@ -17,5 +17,6 @@ resources:
 # Use the images transformer to specify the image and allow dynamic tagging
 # The 'newTag' will be set by the 'kustomize edit set image' command in the workflow
 images:
-  - name: docker.io/venkatakurathitud/receipt-backend # Must match the image name in base
-    newTag: placeholder # This tag will be replaced by the workflow script
+- name: docker.io/venkatakurathitud/receipt-backend
+  newName: docker.io/venkatakurathitud/receipt-backend
+  newTag: b28a800
