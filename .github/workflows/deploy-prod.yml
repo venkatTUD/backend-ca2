@@ -1,7 +1,7 @@
 name: Deploy Backend to Prod
 on:
   push:
-    branches: ["release"]
+    branches: ["main"]
   workflow_dispatch:
 env:
   IMAGE_NAME: receipt-backend
