@@ -89,52 +89,44 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v1
         with:
-          project_id: eadtud
-          install_components: 'gke-gcloud-auth-plugin'
-
+            project_id: eadtud
+            install_components: 'gke-gcloud-auth-plugin'
+        
       - name: Configure kubectl for Prod
         run: |
-          gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
-      
+            gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
+        
+      - name: Prepare Production Environment
+        run: |
+            # Create namespace if it doesn't exist
+            if ! kubectl get namespace prod >/dev/null 2>&1; then
+              echo "Creating prod namespace..."
+              kubectl create namespace prod
+            else
+              echo "prod namespace already exists"
+            fi
+        
+            # Ensure proper labels
+            echo "Ensuring labels on prod namespace..."
+            kubectl label namespace prod environment=production --overwrite
+        
+            # Create or update MongoDB secret
+            kubectl -n prod create secret generic mongodb-secret \
+              --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME_PROD }} \
+              --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD_PROD }} \
+              --from-literal=mongodb-uri=${{ secrets.MONGODB_URI_PROD }} \
+              --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE_PROD }} \
+              --from-literal=mongodb-collection=${{ secrets.MONGODB_COLLECTION_PROD }} \
+              --dry-run=client -o yaml | kubectl apply -f -
+        
       - name: Deploy to Prod
         run: |
-          cd k8s/overlays/prod
-          kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
-          kubectl apply -k .
-        env:
-          MONGODB_USERNAME_PROD: ${{ secrets.MONGODB_USERNAME_PROD }}
-          MONGODB_PASSWORD_PROD: ${{ secrets.MONGODB_PASSWORD_PROD }}
-          MONGODB_URI_PROD: ${{ secrets.MONGODB_URI_PROD }}
-          MONGODB_DATABASE_PROD: ${{ secrets.MONGODB_DATABASE_PROD }}
-          MONGODB_COLLECTION_PROD: ${{ secrets.MONGODB_COLLECTION_PROD }}
-      
+            cd k8s/overlays/prod
+            kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
+            kubectl apply -k .
+        
       - name: Verify Deployment
         run: |
-          kubectl -n prod get pods,svc,deployments.apps,secrets -o wide
-          kubectl -n prod wait --for=condition=available deployment/receipt-backend --timeout=300s
-          kubectl -n prod wait --for=condition=available deployment/mongodb --timeout=300s
-
-
-
-      - name: Configure kubectl
-        run: |
-          gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
-      - name: Create MongoDB Secret
-        run: |
-          kubectl -n prod create secret generic mongodb-secret \
-            --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME }} \
-            --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD }} \
-            --from-literal=mongodb-uri=${{ secrets.MONGODB_URI }} \
-            --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE }} \
-            --from-literal=mongodb-collection=${{ secrets.MONGO_COLLECTION }} \
-            --dry-run=client -o yaml | kubectl apply -f -
-      - name: Deploy to Prod
-        run: |
-          cd k8s/overlays/prod
-          kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
-          kubectl apply -k .
-      - name: Verify Deployment
-        run: |
-          kubectl -n prod get pods,svc,deployments.apps,secrets -o wide
-          kubectl -n prod wait --for=condition=available deployment/receipt-backend --timeout=300s
-          kubectl -n prod wait --for=condition=available deployment/mongodb --timeout=300s
+            kubectl -n prod get pods,svc,deployments.apps,secrets -o wide
+            kubectl -n prod wait --for=condition=available deployment/receipt-backend --timeout=300s
+            kubectl -n prod wait --for=condition=available deployment/mongodb --timeout=300s
