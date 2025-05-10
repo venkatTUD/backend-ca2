@@ -96,28 +96,41 @@ jobs:
         run: |
             gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
 
-      - name: Prepare Production Environment
-        run: |
+            - name: Prepare Production Environment
+            run: |
               # Create namespace if it doesn't exist
               if ! kubectl get namespace prod >/dev/null 2>&1; then
                 echo "Creating prod namespace..."
                 kubectl create namespace prod
+                # Label immediately after creation
+                kubectl label namespace prod environment=production
               else
                 echo "prod namespace already exists"
+                # Ensure label exists and is correct
+                if ! kubectl get namespace prod --show-labels | grep -q 'environment=production'; then
+                  echo "Adding missing label to prod namespace..."
+                  kubectl label namespace prod environment=production
+                else
+                  echo "Namespace already has correct label"
+                fi
               fi
           
-              # Ensure proper labels
-              echo "Ensuring labels on prod namespace..."
-              kubectl label namespace prod environment=production --overwrite
-          
-              # Create or update MongoDB secret using heredoc
-              kubectl -n prod create secret generic mongodb-secret \
-                --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME_PROD }} \
-                --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD_PROD }} \
-                --from-literal=mongodb-uri=${{ secrets.MONGODB_URI_PROD }} \
-                --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE_PROD }} \
-                --from-literal=mongodb-collection=${{ secrets.MONGODB_COLLECTION_PROD }} \
-                --dry-run=client -o yaml | kubectl apply -f - || true
+              # Handle MongoDB secret creation/update
+              echo "Preparing MongoDB secret..."
+              cat <<EOF | kubectl apply -f -
+                        apiVersion: v1
+                        kind: Secret
+                        metadata:
+                          name: mongodb-secret
+                          namespace: prod
+                        type: Opaque
+                        stringData:
+                          mongodb-username: ${{ secrets.MONGODB_USERNAME_PROD }}
+                          mongodb-password: ${{ secrets.MONGODB_PASSWORD_PROD }}
+                          mongodb-uri: ${{ secrets.MONGODB_URI_PROD }}
+                          mongodb-database: ${{ secrets.MONGODB_DATABASE_PROD }}
+                          mongodb-collection: ${{ secrets.MONGODB_COLLECTION_PROD }}
+              EOF
         
       # - name: Prepare Production Environment
       #   run: |
