@@ -84,18 +84,20 @@ jobs:
       - name: Configure kubectl
         run: |
           gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
-      - name: Create MongoDB Secret
-        run: |
-          kubectl -n dev create secret generic mongodb-secret \
-            --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME }} \
-            --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD }} \
-            --from-literal=mongodb-uri=${{ secrets.MONGODB_URI }} \
-            --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE }} \
-            --from-literal=mongodb-collection=${{ secrets.MONGO_COLLECTION }} \
-            --dry-run=client -o yaml | kubectl apply -f -
+
+      # - name: Create MongoDB Secret
+      #   run: |
+      #     kubectl -n dev create secret generic mongodb-secret \
+      #       --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME }} \
+      #       --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD }} \
+      #       --from-literal=mongodb-uri=${{ secrets.MONGODB_URI }} \
+      #       --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE }} \
+      #       --from-literal=mongodb-collection=${{ secrets.MONGO_COLLECTION }} \
+      #       --dry-run=client -o yaml | kubectl apply -f -
+        
       - name: Deploy to Dev
         run: |
-                cd k8s/overlays/dev
+                cd ${{ github.workspace }}/k8s/overlays/dev
                 kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
                 kubectl apply -k .
         env:
