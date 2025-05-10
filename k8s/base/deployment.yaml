@@ -4,15 +4,15 @@ metadata:
   name: receipt-backend
   labels:
     app: receipt-backend
-    version: ${SHORT_SHA}
+    version: SHORT_SHA
     environment: production
 spec:
   replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
-     maxSurge: 1
-     maxUnavailable: 0
+      maxSurge: 1
+      maxUnavailable: 0
   progressDeadlineSeconds: 300
   selector:
     matchLabels:
@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: receipt-backend
-        image: docker.io/venkatakurathitud/receipt-backend:${SHORT_SHA}
+        image: docker.io/venkatakurathitud/receipt-backend:SHORT_SHA
         imagePullPolicy: Always
         ports:
         - containerPort: 9090
