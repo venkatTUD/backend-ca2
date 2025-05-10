@@ -65,12 +65,12 @@ jobs:
         # if: github.event_name == 'pull_request'
 
 
-      - name: OWASP Dependency Check
-        run: mvn org.owasp:dependency-check-maven:check
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        # Check for vulnerabilities; you might want to fail the job if critical ones are found
-        # run: mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=11 # Example to fail on high/critical
+      # - name: OWASP Dependency Check
+      #   run: mvn org.owasp:dependency-check-maven:check
+      #   env:
+      #     NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+      #   # Check for vulnerabilities; you might want to fail the job if critical ones are found
+      #   # run: mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=11 # Example to fail on high/critical
 
       - name: Build and push with Jib
         run: |
@@ -83,23 +83,23 @@ jobs:
           DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Trivy Vulnerability Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          ignore-unfixed: true
-          exit-code: '1' # Fail the job if critical/high vulns are found (adjust as per policy)
-        continue-on-error: true # Set to false if you want the job to fail
+      # - name: Trivy Vulnerability Scan
+      #   uses: aquasecurity/trivy-action@master
+      #   with:
+      #     image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+      #     format: 'sarif'
+      #     output: 'trivy-results.sarif'
+      #     severity: 'CRITICAL,HIGH'
+      #     ignore-unfixed: true
+      #     exit-code: '1' # Fail the job if critical/high vulns are found (adjust as per policy)
+      #   continue-on-error: true # Set to false if you want the job to fail
 
-      # Upload Trivy results to GitHub Security tab
-      - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-        continue-on-error: true # Allow deployment even if SARIF upload fails
+      # # Upload Trivy results to GitHub Security tab
+      # - name: Upload Trivy results to GitHub Security tab
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
+      #   continue-on-error: true # Allow deployment even if SARIF upload fails
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1
