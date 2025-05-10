@@ -117,7 +117,7 @@ jobs:
                 --from-literal=mongodb-uri=${{ secrets.MONGODB_URI_PROD }} \
                 --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE_PROD }} \
                 --from-literal=mongodb-collection=${{ secrets.MONGODB_COLLECTION_PROD }} \
-                --dry-run=client -o yaml | kubectl apply -f -
+                --dry-run=client -o yaml | kubectl apply -f - || true
         
       # - name: Prepare Production Environment
       #   run: |
