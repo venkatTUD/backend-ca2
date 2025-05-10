@@ -5,6 +5,3 @@ resources:
   - service.yaml
   - mongodb-deployment.yaml
   - mongodb-pvc.yaml
-images:
-  - name: docker.io/venkatakurathitud/receipt-backend
-    newTag: SHORT_SHA

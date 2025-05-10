@@ -17,52 +17,36 @@ spec:
         app: mongodb
     spec:
       securityContext:
-        fsGroup: 1000  # Changed from 999 to match the runAsUser
+        fsGroup: 1000 # Ensure this user/group owns the volume mount path
       volumes:
         - name: mongo-data
           persistentVolumeClaim:
             claimName: mongodb-pvc
       initContainers:
+        # Keep fix-permissions if needed for volume ownership
         - name: fix-permissions
           image: busybox
+          # Ensure /data/db is owned by the user/group the container runs as
           command: ["sh", "-c", "chown -R 1000:1000 /data/db && chmod -R 0700 /data/db"]
           volumeMounts:
             - name: mongo-data
               mountPath: /data/db
-        - name: init-mongo
+        # Removed the complex init-mongo container
+      containers:
+        - name: mongodb
           image: mongo:latest
-          securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
-          command:
-            - bash
-            - -c
-            - |
-              set -e
-              echo "Starting mongod for initialization..."
-              mkdir -p /data/db
-              # Skip initialization if already done
-              if [ -f /data/db/initialized ]; then
-                echo "Database already initialized. Exiting init container."
-                exit 0
-              fi
-              mongod --dbpath /data/db --logpath /tmp/mongod.log --bind_ip_all --fork
-              echo "Waiting for MongoDB to start..."
-              until mongosh --quiet --eval "db.runCommand({ ping: 1 })" >/dev/null 2>&1; do
-                echo "MongoDB is not ready, waiting..."
-                sleep 2
-              done
-              echo "MongoDB is ready!"
-              echo "Creating admin user..."
-              mongosh --eval "db.createUser({ user: '$MONGO_INITDB_ROOT_USERNAME', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'root', db: 'admin' }] })" admin || true
-              echo "Creating ead_2024 database user..."
-              mongosh --eval "db = db.getSiblingDB('ead_2024'); db.createUser({ user: 'admin', pwd: '$MONGO_INITDB_ROOT_PASSWORD', roles: [{ role: 'dbOwner', db: 'ead_2024' }] })" admin || true
-              echo "Shutting down mongod..."
-              mongosh --eval "db.shutdownServer()" admin || true
-              # Mark the database as initialized
-              touch /data/db/initialized
-              echo "Init complete"
+          command: ["mongod", "--bind_ip_all", "--auth"]
+          ports:
+            - containerPort: 27017
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
           env:
+            # Added necessary env vars for standard MongoDB initialization
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -73,24 +57,7 @@ spec:
                 secretKeyRef:
                   name: mongodb-secret
                   key: mongodb-password
-          volumeMounts:
-            - name: mongo-data
-              mountPath: /data/db
-      containers:
-        - name: mongodb
-          image: mongo:latest
-          command: ["mongod", "--bind_ip_all", "--auth"]
-          ports:
-            - containerPort: 27017
-          resources:
-            requests:
-              cpu: "500m"  # Increased from 100m
-              memory: "512Mi"  # Increased from 128Mi
-            limits:
-              cpu: "1000m"  # Increased from 200m
-              memory: "1Gi"  # Increased from 256Mi
-          env:
-            - name: MONGO_INITDB_DATABASE
+            - name: MONGO_INITDB_DATABASE # Still needed if you want this specific DB created initially
               valueFrom:
                 secretKeyRef:
                   name: mongodb-secret
@@ -100,13 +67,19 @@ spec:
               mountPath: /data/db
           securityContext:
             runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+            runAsUser: 1000 # Must match fsGroup and chown user
+            runAsGroup: 1000 # Must match fsGroup and chown group
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
           livenessProbe:
             exec:
+              # Use mongosh with connection string if auth is enabled and you aren't using default admin db
+              # Or check if the ping command works with auth.
+              # mongosh "mongodb://<user>:<password>@localhost:27017/admin" --eval "db.adminCommand('ping')"
+              # For simplicity, let's stick to the basic ping assuming admin access via service account or similar,
+              # or configure RBAC for liveness probe execution.
+              # A simple ping is often sufficient for liveness/readiness.
               command: ["mongosh", "--eval", "db.adminCommand('ping')"]
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -121,6 +94,7 @@ spec:
             failureThreshold: 3
 
 ---
+# Service for MongoDB (remains the same)
 apiVersion: v1
 kind: Service
 metadata:

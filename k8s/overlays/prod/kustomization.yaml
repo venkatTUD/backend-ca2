@@ -1,13 +1,21 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: prod
+namespace: prod # Ensure the namespace is set
 resources:
   - ../../base
-secretGenerator:
-- name: mongodb-secret
-  literals:
-  - mongodb-username=${MONGODB_USERNAME_PROD}
-  - mongodb-password=${MONGODB_PASSWORD_PROD}
-  - mongodb-uri=${MONGODB_URI_PROD}
-  - mongodb-database=${MONGODB_DATABASE_PROD}
-  - mongodb-collection=${MONGODB_COLLECTION_PROD}
+
+# Removed secretGenerator - the secret will be created manually by the workflow
+# secretGenerator:
+# - name: mongodb-secret
+#   literals:
+#   - mongodb-username=${MONGODB_USERNAME_PROD} # Kustomize doesn't substitute shell variables
+#   - mongodb-password=${MONGODB_PASSWORD_PROD}
+#   - mongodb-uri=${MONGODB_URI_PROD}
+#   - mongodb-database=${MONGODB_DATABASE_PROD}
+#   - mongodb-collection=${MONGODB_COLLECTION_PROD}
+
+# Use the images transformer to specify the image and allow dynamic tagging
+# The 'newTag' will be set by the 'kustomize edit set image' command in the workflow
+images:
+  - name: docker.io/venkatakurathitud/receipt-backend # Must match the image name in base
+    newTag: placeholder # This tag will be replaced by the workflow script

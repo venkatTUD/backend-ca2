@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
       - name: receipt-backend
-        image: docker.io/venkatakurathitud/receipt-backend:SHORT_SHA
+        image: docker.io/venkatakurathitud/receipt-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 9090
