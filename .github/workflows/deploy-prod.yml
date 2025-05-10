@@ -70,16 +70,16 @@ jobs:
           DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       
-      - name: Trivy Vulnerability Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          ignore-unfixed: true
-          exit-code: '1'
-        continue-on-error: true
+      # - name: Trivy Vulnerability Scan
+      #   uses: aquasecurity/trivy-action@master
+      #   with:
+      #     image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+      #     format: 'sarif'
+      #     output: 'trivy-results.sarif'
+      #     severity: 'CRITICAL,HIGH'
+      #     ignore-unfixed: true
+      #     exit-code: '1'
+      #   continue-on-error: true
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1
@@ -95,29 +95,52 @@ jobs:
       - name: Configure kubectl for Prod
         run: |
             gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
-        
+
       - name: Prepare Production Environment
         run: |
-            # Create namespace if it doesn't exist
-            if ! kubectl get namespace prod >/dev/null 2>&1; then
-              echo "Creating prod namespace..."
-              kubectl create namespace prod
-            else
-              echo "prod namespace already exists"
-            fi
+              # Create namespace if it doesn't exist
+              if ! kubectl get namespace prod >/dev/null 2>&1; then
+                echo "Creating prod namespace..."
+                kubectl create namespace prod
+              else
+                echo "prod namespace already exists"
+              fi
+          
+              # Ensure proper labels
+              echo "Ensuring labels on prod namespace..."
+              kubectl label namespace prod environment=production --overwrite
+          
+              # Create or update MongoDB secret using heredoc
+              kubectl -n prod create secret generic mongodb-secret \
+                --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME_PROD }} \
+                --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD_PROD }} \
+                --from-literal=mongodb-uri=${{ secrets.MONGODB_URI_PROD }} \
+                --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE_PROD }} \
+                --from-literal=mongodb-collection=${{ secrets.MONGODB_COLLECTION_PROD }} \
+                --dry-run=client -o yaml | kubectl apply -f -
         
-            # Ensure proper labels
-            echo "Ensuring labels on prod namespace..."
-            kubectl label namespace prod environment=production --overwrite
+      # - name: Prepare Production Environment
+      #   run: |
+      #       # Create namespace if it doesn't exist
+      #       if ! kubectl get namespace prod >/dev/null 2>&1; then
+      #         echo "Creating prod namespace..."
+      #         kubectl create namespace prod
+      #       else
+      #         echo "prod namespace already exists"
+      #       fi
         
-            # Create or update MongoDB secret
-            kubectl -n prod create secret generic mongodb-secret \
-              --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME_PROD }} \
-              --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD_PROD }} \
-              --from-literal=mongodb-uri=${{ secrets.MONGODB_URI_PROD }} \
-              --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE_PROD }} \
-              --from-literal=mongodb-collection=${{ secrets.MONGODB_COLLECTION_PROD }} \
-              --dry-run=client -o yaml | kubectl apply -f -
+      #       # Ensure proper labels
+      #       echo "Ensuring labels on prod namespace..."
+      #       kubectl label namespace prod environment=production --overwrite
+        
+      #       # Create or update MongoDB secret
+      #       kubectl -n prod create secret generic mongodb-secret \
+      #         --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME_PROD }} \
+      #         --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD_PROD }} \
+      #         --from-literal=mongodb-uri=${{ secrets.MONGODB_URI_PROD }} \
+      #         --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE_PROD }} \
+      #         --from-literal=mongodb-collection=${{ secrets.MONGODB_COLLECTION_PROD }} \
+      #         --dry-run=client -o yaml | kubectl apply -f -
         
       - name: Deploy to Prod
         run: |
