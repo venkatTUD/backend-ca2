@@ -5,6 +5,7 @@ metadata:
   labels:
     app: receipt-backend
 spec:
+  revisionHistoryLimit: 3
   type: ClusterIP
   ports:
   - port: 80
