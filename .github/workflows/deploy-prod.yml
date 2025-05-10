@@ -1,16 +1,14 @@
 name: Deploy Backend to Prod
 on:
   push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+    branches: ["release"]
   workflow_dispatch:
 env:
   IMAGE_NAME: receipt-backend
   DOCKER_REGISTRY: docker.io
-  SONAR_HOST_URL: https://sonarcloud.io
   GKE_CLUSTER_NAME: receipt-prod-cluster
   GKE_REGION: us-central1
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -19,6 +17,7 @@ jobs:
       packages: write
       deployments: write
       security-events: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -69,17 +68,17 @@ jobs:
         env:
           DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      # - name: Trivy Vulnerability Scan
-      #   uses: aquasecurity/trivy-action@master
-      #   with:
-      #     image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-      #     format: 'sarif'
-      #     output: 'trivy-results.sarif'
-      #     severity: 'CRITICAL,HIGH'
-      #     ignore-unfixed: true
-      #     exit-code: '1'
-      #   continue-on-error: true
+
+      - name: Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '1'
+        continue-on-error: true
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1
@@ -89,80 +88,52 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v1
         with:
-            project_id: eadtud
-            install_components: 'gke-gcloud-auth-plugin'
-        
+          project_id: eadtud
+          install_components: 'gke-gcloud-auth-plugin'
+
       - name: Configure kubectl for Prod
         run: |
-            gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
+          gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
 
-            - name: Prepare Production Environment
-            run: |
-              # Create namespace if it doesn't exist
-              if ! kubectl get namespace prod >/dev/null 2>&1; then
-                echo "Creating prod namespace..."
-                kubectl create namespace prod
-                # Label immediately after creation
-                kubectl label namespace prod environment=production
-              else
-                echo "prod namespace already exists"
-                # Ensure label exists and is correct
-                if ! kubectl get namespace prod --show-labels | grep -q 'environment=production'; then
-                  echo "Adding missing label to prod namespace..."
-                  kubectl label namespace prod environment=production
-                else
-                  echo "Namespace already has correct label"
-                fi
-              fi
-          
-              # Handle MongoDB secret creation/update
-              echo "Preparing MongoDB secret..."
-              cat <<EOF | kubectl apply -f -
-                        apiVersion: v1
-                        kind: Secret
-                        metadata:
-                          name: mongodb-secret
-                          namespace: prod
-                        type: Opaque
-                        stringData:
-                          mongodb-username: ${{ secrets.MONGODB_USERNAME_PROD }}
-                          mongodb-password: ${{ secrets.MONGODB_PASSWORD_PROD }}
-                          mongodb-uri: ${{ secrets.MONGODB_URI_PROD }}
-                          mongodb-database: ${{ secrets.MONGODB_DATABASE_PROD }}
-                          mongodb-collection: ${{ secrets.MONGODB_COLLECTION_PROD }}
-              EOF
+          - name: Prepare Production Environment
+          run: |
+            # Create namespace and label in one command
+            kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
+            kubectl label namespace prod environment=production --overwrite
         
-      # - name: Prepare Production Environment
-      #   run: |
-      #       # Create namespace if it doesn't exist
-      #       if ! kubectl get namespace prod >/dev/null 2>&1; then
-      #         echo "Creating prod namespace..."
-      #         kubectl create namespace prod
-      #       else
-      #         echo "prod namespace already exists"
-      #       fi
+            # Create secret template file
+            cat > secret-template.yaml << 'EOL'
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: mongodb-secret
+              namespace: prod
+            type: Opaque
+            stringData:
+              mongodb-username: ${MONGO_USERNAME}
+              mongodb-password: ${MONGO_PASSWORD}
+              mongodb-uri: ${MONGO_URI}
+              mongodb-database: ${MONGO_DATABASE}
+              mongodb-collection: ${MONGO_COLLECTION}
+            EOL
         
-      #       # Ensure proper labels
-      #       echo "Ensuring labels on prod namespace..."
-      #       kubectl label namespace prod environment=production --overwrite
-        
-      #       # Create or update MongoDB secret
-      #       kubectl -n prod create secret generic mongodb-secret \
-      #         --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME_PROD }} \
-      #         --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD_PROD }} \
-      #         --from-literal=mongodb-uri=${{ secrets.MONGODB_URI_PROD }} \
-      #         --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE_PROD }} \
-      #         --from-literal=mongodb-collection=${{ secrets.MONGODB_COLLECTION_PROD }} \
-      #         --dry-run=client -o yaml | kubectl apply -f -
-        
+            # Substitute variables and apply
+            envsubst < secret-template.yaml | kubectl apply -f -
+          env:
+            MONGO_USERNAME: ${{ secrets.MONGODB_USERNAME_PROD }}
+            MONGO_PASSWORD: ${{ secrets.MONGODB_PASSWORD_PROD }}
+            MONGO_URI: ${{ secrets.MONGODB_URI_PROD }}
+            MONGO_DATABASE: ${{ secrets.MONGODB_DATABASE_PROD }}
+            MONGO_COLLECTION: ${{ secrets.MONGODB_COLLECTION_PROD }}
+
       - name: Deploy to Prod
         run: |
-            cd k8s/overlays/prod
-            kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
-            kubectl apply -k .
-        
+          cd k8s/overlays/prod
+          kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
+          kubectl apply -k .
+
       - name: Verify Deployment
         run: |
-            kubectl -n prod get pods,svc,deployments.apps,secrets -o wide
-            kubectl -n prod wait --for=condition=available deployment/receipt-backend --timeout=300s
-            kubectl -n prod wait --for=condition=available deployment/mongodb --timeout=300s
+          kubectl -n prod get pods,svc,deployments.apps,secrets -o wide
+          kubectl -n prod wait --for=condition=available deployment/receipt-backend --timeout=300s
+          kubectl -n prod wait --for=condition=available deployment/mongodb --timeout=300s
