@@ -3,6 +3,8 @@ kind: Kustomization
 namespace: default
 resources:
 - ../../base
+patchesStrategicMerge:
+- patch-mongodb-pvc-storageclass.yaml # Include the patch file
 images:
 - name: docker.io/venkatakurathitud/receipt-backend
   newName: docker.io/venkatakurathitud/receipt-backend

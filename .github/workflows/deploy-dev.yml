@@ -117,7 +117,7 @@ jobs:
         run: |
           gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
 
-      - name: Prepare Production Environment (Create Namespace and Secret)
+      - name: Prepare dev Environment (Create Namespace and Secret)
         run: |
           # Create namespace and label if they don't exist
           kubectl create namespace default --dry-run=client -o yaml | kubectl apply -f -
