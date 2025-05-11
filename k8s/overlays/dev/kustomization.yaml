@@ -3,6 +3,10 @@ kind: Kustomization
 namespace: dev
 resources:
 - ../../base
+
+patches:
+  - path: mongodb-patch.yaml
+  
 images:
 - name: docker.io/venkatakurathitud/receipt-backend
   newName: docker.io/venkatakurathitud/receipt-backend
