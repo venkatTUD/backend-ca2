@@ -6,3 +6,4 @@ resources:
   - mongodb-deployment.yaml
   - mongodb-pvc.yaml
   - hpa.yaml
+  - network-policy.yaml
