@@ -3,8 +3,6 @@ kind: Kustomization
 namespace: default
 resources:
 - ../../base
-commonLabels:
-  environment: dev
 images:
 - name: docker.io/venkatakurathitud/receipt-backend
   newName: docker.io/venkatakurathitud/receipt-backend

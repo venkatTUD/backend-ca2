@@ -3,8 +3,6 @@ kind: Kustomization
 namespace: prod
 resources:
 - ../../base
-commonLabels:
-  environment: production
 images:
 - name: docker.io/venkatakurathitud/receipt-backend
   newName: docker.io/venkatakurathitud/receipt-backend
