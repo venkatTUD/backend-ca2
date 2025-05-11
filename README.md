@@ -1,3 +1,5 @@
+[![Deploy Backend to Prod](https://github.com/venkatTUD/backend-ca2/actions/workflows/deploy-prod.yml/badge.svg)](https://github.com/venkatTUD/backend-ca2/actions/workflows/deploy-prod.yml)
+
 # Recipe Backend Service
 
 This Spring Boot application provides a backend API for managing recipes.
