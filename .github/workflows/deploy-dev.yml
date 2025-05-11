@@ -22,8 +22,8 @@ env:
   NAMESPACE_LABEL: environment=production
   
   # Path configuration
-  KUSTOMIZE_PROD_DIR: k8s/overlays/prod
-  MAVEN_CACHE_KEY: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+  KUSTOMIZE_PROD_DIR: k8s/overlays/dev
+  # MAVEN_CACHE_KEY: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
   
   # SonarQube configuration
   SONAR_PROJECT_KEY: venkatTUD_backend-ca2
@@ -59,9 +59,9 @@ jobs:
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
-          path: ~/.m2
-          key: ${{ env.MAVEN_CACHE_KEY }}
-          restore-keys: ${{ runner.os }}-m2
+            path: ~/.m2
+            key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+            restore-keys: ${{ runner.os }}-m2
 
       - name: Build and test
         run: mvn clean compile test
