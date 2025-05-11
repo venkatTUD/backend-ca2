@@ -2,32 +2,17 @@ name: Deploy Backend to dev
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
   pull_request:
-    branches: [main]
+    branches: ["main"]
 
 env:
-  # Core configuration
   IMAGE_NAME: receipt-backend
   DOCKER_REGISTRY: docker.io
-  DOCKER_NAMESPACE: venkatakurathitud
-  
-  # Cluster configuration
   GKE_CLUSTER_NAME: receipt-cluster
   GKE_REGION: us-central1
-  GKE_PROJECT_ID: eadtud
-  
-  # Namespace configuration (extracted)
-  TARGET_NAMESPACE: default
-  NAMESPACE_LABEL: environment=production
-  
-  # Path configuration
-  KUSTOMIZE_PROD_DIR: k8s/overlays/dev
-  # MAVEN_CACHE_KEY: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-  
-  # SonarQube configuration
-  SONAR_PROJECT_KEY: venkatTUD_backend-ca2
-  JACOCO_REPORT_PATH: target/site/jacoco/jacoco.xml
+  # Define kustomize directory path
+  KUSTOMIZE_DEV_DIR: k8s/overlays/dev
 
 jobs:
   build-and-deploy:
@@ -37,7 +22,7 @@ jobs:
       packages: write
       deployments: write
       security-events: write
-      id-token: write
+      id-token: write # Required for google-github-actions/auth@v1
 
     steps:
       - name: Checkout repository
@@ -59,9 +44,9 @@ jobs:
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
-            path: ~/.m2
-            key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-            restore-keys: ${{ runner.os }}-m2
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
 
       - name: Build and test
         run: mvn clean compile test
@@ -71,24 +56,30 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }} \
+            -Dsonar.projectKey=venkatTUD_backend-ca2 \
             -Dsonar.java.coveragePlugin=jacoco \
-            -Dsonar.coverage.jacoco.xmlReportPaths=${{ env.JACOCO_REPORT_PATH }} \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
             -Dsonar.pullrequest.branch=${{ github.head_ref }} \
             -Dsonar.pullrequest.base=${{ github.base_ref }}
+        # Add conditional execution for PRs if desired
+        # if: github.event_name == 'pull_request'
+
 
       - name: OWASP Dependency Check
         run: mvn org.owasp:dependency-check-maven:check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        # Check for vulnerabilities; you might want to fail the job if critical ones are found
+        # run: mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=11 # Example to fail on high/critical
 
       - name: Build and push with Jib
         run: |
+          # Ensure the image name matches the one expected by Kustomize
           mvn package jib:build -DskipTests \
             -Djib.to.auth.username=${{ secrets.DOCKERHUB_USERID }} \
             -Djib.to.auth.password=${{ secrets.DOCKERHUB_TOKEN }} \
-            -Djib.to.image=${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+            -Djib.to.image=${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
         env:
           DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -96,19 +87,20 @@ jobs:
       - name: Trivy Vulnerability Scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+          image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          exit-code: '1'
-        continue-on-error: true
+          exit-code: '1' # Fail the job if critical/high vulns are found (adjust as per policy)
+        continue-on-error: true # Set to false if you want the job to fail
 
+      # Upload Trivy results to GitHub Security tab
       - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
-        continue-on-error: true
+        continue-on-error: true # Allow deployment even if SARIF upload fails
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1
@@ -118,30 +110,28 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v1
         with:
-          project_id: ${{ env.GKE_PROJECT_ID }}
+          project_id: eadtud
           install_components: 'gke-gcloud-auth-plugin'
 
-      - name: Configure kubectl
+      - name: Configure kubectl for dev
         run: |
-          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} \
-            --region ${{ env.GKE_REGION }} \
-            --project ${{ env.GKE_PROJECT_ID }}
+          gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
 
-      - name: Prepare Namespace and Secrets
+      - name: Prepare Production Environment (Create Namespace and Secret)
         run: |
-          # Create namespace if it doesn't exist
-          kubectl create namespace ${{ env.TARGET_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-          
-          # Apply namespace label
-          kubectl label namespace ${{ env.TARGET_NAMESPACE }} ${{ env.NAMESPACE_LABEL }} --overwrite
+          # Create namespace and label if they don't exist
+          kubectl create namespace default --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace default environment=dev --overwrite
 
-          # Create secret from template
+          # --- Manual Secret Creation ---
+          # This step creates the secret outside of Kustomization
+          # It's necessary because Kustomization's secretGenerator doesn't substitute env vars
           cat > secret-template.yaml << 'EOL'
           apiVersion: v1
           kind: Secret
           metadata:
             name: mongodb-secret
-            namespace: ${TARGET_NAMESPACE}
+            namespace: default # Ensure namespace matches deployment
           type: Opaque
           stringData:
             mongodb-username: ${MONGO_USERNAME}
@@ -151,34 +141,42 @@ jobs:
             mongodb-collection: ${MONGO_COLLECTION}
           EOL
 
-          # Substitute variables and apply
+          # Substitute variables from GH secrets and apply the secret
           envsubst < secret-template.yaml | kubectl apply -f -
-        env:
-          TARGET_NAMESPACE: ${{ env.TARGET_NAMESPACE }}
-          MONGO_USERNAME: ${{ secrets.MONGODB_USERNAME_PROD }}
-          MONGO_PASSWORD: ${{ secrets.MONGODB_PASSWORD_PROD }}
-          MONGO_URI: ${{ secrets.MONGODB_URI_PROD }}
-          MONGO_DATABASE: ${{ secrets.MONGODB_DATABASE_PROD }}
-          MONGO_COLLECTION: ${{ secrets.MONGODB_COLLECTION_PROD }}
+          # --- End Manual Secret Creation ---
 
-      - name: Deploy using Kustomize
+        env:
+          # Use GitHub Actions secrets for sensitive data
+          MONGO_USERNAME: ${{ secrets.MONGODB_USERNAME_DEV}}
+          MONGO_PASSWORD: ${{ secrets.MONGODB_PASSWORD_DEV }}
+          MONGO_URI: ${{ secrets.MONGODB_URI_DEV }}
+          MONGO_DATABASE: ${{ secrets.MONGODB_DATABASE_DEV}}
+          MONGO_COLLECTION: ${{ secrets.MONGODB_COLLECTION_DEV }}
+
+
+      - name: Deploy to Prod using Kustomize
         run: |
-          cd ${{ env.KUSTOMIZE_PROD_DIR }}
-          
-          # Update image reference
-          kustomize edit set image \
-            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/${{ env.IMAGE_NAME }} \
-            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-          
-          # Deploy to target namespace
-          kubectl apply -k . --namespace=${{ env.TARGET_NAMESPACE }}
+          # Navigate to the kustomization directory
+          cd ${{ env.KUSTOMIZE_DEV_DIR }}
+
+          # Edit the kustomization.yaml to set the correct image tag
+          # This modifies the kustomization.yaml file locally in the runner
+          kustomize edit set image docker.io/venkatakurathitud/${{ env.IMAGE_NAME }}=${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+
+          # Apply the kustomization. This will use the modified file.
+          kubectl apply -k .
 
       - name: Verify Deployment
         run: |
-          echo "Verifying resources in namespace: ${{ env.TARGET_NAMESPACE }}"
-          kubectl -n ${{ env.TARGET_NAMESPACE }} get pods,svc,deployments.apps,secrets -o wide
-          
-          echo "Waiting for deployments to be ready..."
-          kubectl -n ${{ env.TARGET_NAMESPACE }} wait --for=condition=available deployment/receipt-backend --timeout=300s
-          kubectl -n ${{ env.TARGET_NAMESPACE }} wait --for=condition=available deployment/mongodb --timeout=300s
+          echo "Verifying deployment in namespace prod..."
+          kubectl -n default get pods,svc,deployments.apps,secrets -o wide
+
+          # Wait for the receipt-backend deployment to be ready
+          echo "Waiting for receipt-backend deployment to be available..."
+          kubectl -n default wait --for=condition=available deployment/receipt-backend --timeout=300s
+
+          # Wait for the mongodb deployment to be ready
+          echo "Waiting for mongodb deployment to be available..."
+          kubectl -n default wait --for=condition=available deployment/mongodb --timeout=300s
+
           echo "Deployment verification complete."
