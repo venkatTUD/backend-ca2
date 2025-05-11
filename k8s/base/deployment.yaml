@@ -4,7 +4,6 @@ metadata:
   name: receipt-backend
   labels:
     app: receipt-backend
-    environment: production
 spec:
   replicas: 2
   revisionHistoryLimit: 2

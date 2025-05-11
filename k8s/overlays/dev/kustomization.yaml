@@ -1,13 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: dev
+namespace: default
 resources:
-  - ../../base
-secretGenerator:
-- name: mongodb-secret
-  literals:
-  - mongodb-username=${MONGODB_USERNAME_DEV}
-  - mongodb-password=${MONGODB_PASSWORD_DEV}
-  - mongodb-uri=${MONGODB_URI_DEV}
-  - mongodb-database=${MONGODB_DATABASE_DEV}
-  - mongodb-collection=${MONGODB_COLLECTION_DEV}
+- ../../base
+commonLabels:
+  environment: dev
+images:
+- name: docker.io/venkatakurathitud/receipt-backend
+  newName: docker.io/venkatakurathitud/receipt-backend
+  newTag: ${SHORT_SHA}

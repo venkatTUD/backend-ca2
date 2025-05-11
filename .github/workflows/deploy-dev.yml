@@ -1,113 +1,184 @@
-# name: Deploy Backend to Dev
-# on:
-#   push:
-#     branches: ["main"]
-#   pull_request:
-#     branches: ["main"]
-#   workflow_dispatch:
-# env:
-#   IMAGE_NAME: receipt-backend
-#   DOCKER_REGISTRY: docker.io
-#   SONAR_HOST_URL: https://sonarcloud.io
-#   GKE_CLUSTER_NAME: receipt-cluster
-#   GKE_REGION: us-central1
-# jobs:
-#   build-and-deploy:
-#     runs-on: ubuntu-latest
-#     permissions:
-#       contents: read
-#       packages: write
-#       deployments: write
-#       security-events: write
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v3
-#         with:
-#           fetch-depth: 0
-#       - name: Get short SHA
-#         id: sha
-#         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-#       - name: Set up JDK 17
-#         uses: actions/setup-java@v3
-#         with:
-#           java-version: '17'
-#           distribution: 'temurin'
-#           cache: maven
-#       - name: Cache Maven packages
-#         uses: actions/cache@v4
-#         with:
-#           path: ~/.m2
-#           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-#           restore-keys: ${{ runner.os }}-m2
-#       - name: Build and test
-#         run: mvn clean compile test
-#       - name: SonarQube Analysis
-#         env:
-#           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-#         run: |
-#           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-#             -Dsonar.projectKey=venkatTUD_backend-ca2 \
-#             -Dsonar.java.coveragePlugin=jacoco \
-#             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-#       - name: OWASP Dependency Check
-#         run: mvn org.owasp:dependency-check-maven:check
-#         env:
-#           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-#       - name: Build and push with Jib
-#         run: |
-#           mvn package jib:build -DskipTests \
-#             -Djib.to.auth.username=${{ secrets.DOCKERHUB_USERID }} \
-#             -Djib.to.auth.password=${{ secrets.DOCKERHUB_TOKEN }} \
-#             -Djib.to.image=docker.io/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-#         env:
-#           DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
-#           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-#       - name: Trivy Vulnerability Scan
-#         uses: aquasecurity/trivy-action@master
-#         with:
-#           image-ref: ${{ env.DOCKER_REGISTRY }}/venkatakurathitud/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-#           format: 'sarif'
-#           output: 'trivy-results.sarif'
-#           severity: 'CRITICAL,HIGH'
-#           ignore-unfixed: true
-#           exit-code: '1'
-#         continue-on-error: true
-#       - name: Authenticate to Google Cloud
-#         uses: google-github-actions/auth@v1
-#         with:
-#           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-#       - name: Set up gcloud
-#         uses: google-github-actions/setup-gcloud@v1
-#         with:
-#           project_id: eadtud
-#           install_components: 'gke-gcloud-auth-plugin'
-#       - name: Configure kubectl
-#         run: |
-#           gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $GKE_REGION
+name: Deploy Backend to Prod
 
-#       # - name: Create MongoDB Secret
-#       #   run: |
-#       #     kubectl -n dev create secret generic mongodb-secret \
-#       #       --from-literal=mongodb-username=${{ secrets.MONGODB_USERNAME }} \
-#       #       --from-literal=mongodb-password=${{ secrets.MONGODB_PASSWORD }} \
-#       #       --from-literal=mongodb-uri=${{ secrets.MONGODB_URI }} \
-#       #       --from-literal=mongodb-database=${{ secrets.MONGODB_DATABASE }} \
-#       #       --from-literal=mongodb-collection=${{ secrets.MONGO_COLLECTION }} \
-#       #       --dry-run=client -o yaml | kubectl apply -f -
-        
-#       - name: Deploy to Dev
-#         run: |
-#                 cd ${{ github.workspace }}/k8s/overlays/dev
-#                 kustomize edit set image docker.io/venkatakurathitud/receipt-backend=docker.io/venkatakurathitud/receipt-backend:${{ env.SHORT_SHA }}
-#                 kubectl apply -k .
-#         env:
-#                 MONGODB_USERNAME_DEV: ${{ secrets.MONGODB_USERNAME }}
-#                 MONGODB_PASSWORD_DEV: ${{ secrets.MONGODB_PASSWORD }}
-#                 MONGODB_URI_DEV: ${{ secrets.MONGODB_URI }}
-#                 MONGODB_DATABASE_DEV: ${{ secrets.MONGODB_DATABASE }}
-#                 MONGODB_COLLECTION_DEV: ${{ secrets.MONGODB_COLLECTION }}
-#       - name: Verify Deployment
-#         run: |
-#           kubectl -n dev get pods,svc,deployments.apps,secrets -o wide
-#           kubectl -n dev wait --for=condition=available deployment/receipt-backend --timeout=300s
-#           kubectl -n dev wait --for=condition=available deployment/mongodb --timeout=300s
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  # Core configuration
+  IMAGE_NAME: receipt-backend
+  DOCKER_REGISTRY: docker.io
+  DOCKER_NAMESPACE: venkatakurathitud
+  
+  # Cluster configuration
+  GKE_CLUSTER_NAME: receipt-cluster
+  GKE_REGION: us-central1
+  GKE_PROJECT_ID: eadtud
+  
+  # Namespace configuration (extracted)
+  TARGET_NAMESPACE: default
+  NAMESPACE_LABEL: environment=production
+  
+  # Path configuration
+  KUSTOMIZE_PROD_DIR: k8s/overlays/prod
+  MAVEN_CACHE_KEY: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+  
+  # SonarQube configuration
+  SONAR_PROJECT_KEY: venkatTUD_backend-ca2
+  JACOCO_REPORT_PATH: target/site/jacoco/jacoco.xml
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      deployments: write
+      security-events: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get short SHA
+        id: sha
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ env.MAVEN_CACHE_KEY }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build and test
+        run: mvn clean compile test
+
+      - name: SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }} \
+            -Dsonar.java.coveragePlugin=jacoco \
+            -Dsonar.coverage.jacoco.xmlReportPaths=${{ env.JACOCO_REPORT_PATH }} \
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
+            -Dsonar.pullrequest.branch=${{ github.head_ref }} \
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
+
+      - name: OWASP Dependency Check
+        run: mvn org.owasp:dependency-check-maven:check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Build and push with Jib
+        run: |
+          mvn package jib:build -DskipTests \
+            -Djib.to.auth.username=${{ secrets.DOCKERHUB_USERID }} \
+            -Djib.to.auth.password=${{ secrets.DOCKERHUB_TOKEN }} \
+            -Djib.to.image=${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+        env:
+          DOCKERHUB_USERID: ${{ secrets.DOCKERHUB_USERID }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '1'
+        continue-on-error: true
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ env.GKE_PROJECT_ID }}
+          install_components: 'gke-gcloud-auth-plugin'
+
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} \
+            --region ${{ env.GKE_REGION }} \
+            --project ${{ env.GKE_PROJECT_ID }}
+
+      - name: Prepare Namespace and Secrets
+        run: |
+          # Create namespace if it doesn't exist
+          kubectl create namespace ${{ env.TARGET_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Apply namespace label
+          kubectl label namespace ${{ env.TARGET_NAMESPACE }} ${{ env.NAMESPACE_LABEL }} --overwrite
+
+          # Create secret from template
+          cat > secret-template.yaml << 'EOL'
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: mongodb-secret
+            namespace: ${TARGET_NAMESPACE}
+          type: Opaque
+          stringData:
+            mongodb-username: ${MONGO_USERNAME}
+            mongodb-password: ${MONGO_PASSWORD}
+            mongodb-uri: ${MONGO_URI}
+            mongodb-database: ${MONGO_DATABASE}
+            mongodb-collection: ${MONGO_COLLECTION}
+          EOL
+
+          # Substitute variables and apply
+          envsubst < secret-template.yaml | kubectl apply -f -
+        env:
+          TARGET_NAMESPACE: ${{ env.TARGET_NAMESPACE }}
+          MONGO_USERNAME: ${{ secrets.MONGODB_USERNAME_PROD }}
+          MONGO_PASSWORD: ${{ secrets.MONGODB_PASSWORD_PROD }}
+          MONGO_URI: ${{ secrets.MONGODB_URI_PROD }}
+          MONGO_DATABASE: ${{ secrets.MONGODB_DATABASE_PROD }}
+          MONGO_COLLECTION: ${{ secrets.MONGODB_COLLECTION_PROD }}
+
+      - name: Deploy using Kustomize
+        run: |
+          cd ${{ env.KUSTOMIZE_PROD_DIR }}
+          
+          # Update image reference
+          kustomize edit set image \
+            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/${{ env.IMAGE_NAME }} \
+            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+          
+          # Deploy to target namespace
+          kubectl apply -k . --namespace=${{ env.TARGET_NAMESPACE }}
+
+      - name: Verify Deployment
+        run: |
+          echo "Verifying resources in namespace: ${{ env.TARGET_NAMESPACE }}"
+          kubectl -n ${{ env.TARGET_NAMESPACE }} get pods,svc,deployments.apps,secrets -o wide
+          
+          echo "Waiting for deployments to be ready..."
+          kubectl -n ${{ env.TARGET_NAMESPACE }} wait --for=condition=available deployment/receipt-backend --timeout=300s
+          kubectl -n ${{ env.TARGET_NAMESPACE }} wait --for=condition=available deployment/mongodb --timeout=300s
+          echo "Deployment verification complete."

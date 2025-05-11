@@ -3,20 +3,9 @@ kind: Kustomization
 namespace: prod
 resources:
 - ../../base
-
-# Removed secretGenerator - the secret will be created manually by the workflow
-# secretGenerator:
-# - name: mongodb-secret
-#   literals:
-#   - mongodb-username=${MONGODB_USERNAME_PROD} # Kustomize doesn't substitute shell variables
-#   - mongodb-password=${MONGODB_PASSWORD_PROD}
-#   - mongodb-uri=${MONGODB_URI_PROD}
-#   - mongodb-database=${MONGODB_DATABASE_PROD}
-#   - mongodb-collection=${MONGODB_COLLECTION_PROD}
-
-# Use the images transformer to specify the image and allow dynamic tagging
-# The 'newTag' will be set by the 'kustomize edit set image' command in the workflow
+commonLabels:
+  environment: production
 images:
 - name: docker.io/venkatakurathitud/receipt-backend
   newName: docker.io/venkatakurathitud/receipt-backend
-  newTag: b28a800
+  newTag: ${SHORT_SHA}
