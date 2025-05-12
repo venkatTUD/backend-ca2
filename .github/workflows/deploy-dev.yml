@@ -9,7 +9,7 @@ on:
 env:
   IMAGE_NAME: receipt-backend
   DOCKER_REGISTRY: docker.io
-  GKE_CLUSTER_NAME: receipt-cluster
+  GKE_CLUSTER_NAME: receipt-dev-cluster
   GKE_REGION: us-central1
   # Define kustomize directory path
   KUSTOMIZE_DEV_DIR: k8s/overlays/dev
@@ -120,8 +120,8 @@ jobs:
       - name: Prepare dev Environment (Create Namespace and Secret)
         run: |
           # Create namespace and label if they don't exist
-          kubectl create namespace default --dry-run=client -o yaml | kubectl apply -f -
-          kubectl label namespace default environment=dev --overwrite
+          kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace dev environment=dev --overwrite
 
           # --- Manual Secret Creation ---
           # This step creates the secret outside of Kustomization
@@ -131,7 +131,7 @@ jobs:
           kind: Secret
           metadata:
             name: mongodb-secret
-            namespace: default # Ensure namespace matches deployment
+            namespace: dev # Ensure namespace matches deployment
           type: Opaque
           stringData:
             mongodb-username: ${MONGO_USERNAME}
@@ -154,7 +154,7 @@ jobs:
           MONGO_COLLECTION: ${{ secrets.MONGODB_COLLECTION_DEV }}
 
 
-      - name: Deploy to Prod using Kustomize
+      - name: Deploy to dev using Kustomize
         run: |
           # Navigate to the kustomization directory
           cd ${{ env.KUSTOMIZE_DEV_DIR }}
@@ -168,15 +168,15 @@ jobs:
 
       - name: Verify Deployment
         run: |
-          echo "Verifying deployment in namespace prod..."
-          kubectl -n default get pods,svc,deployments.apps,secrets -o wide
+          echo "Verifying deployment in namespace dev..."
+          kubectl -n dev get pods,svc,deployments.apps,secrets -o wide
 
           # Wait for the receipt-backend deployment to be ready
           echo "Waiting for receipt-backend deployment to be available..."
-          kubectl -n default wait --for=condition=available deployment/receipt-backend --timeout=300s
+          kubectl -n dev wait --for=condition=available deployment/receipt-backend --timeout=300s
 
           # Wait for the mongodb deployment to be ready
           echo "Waiting for mongodb deployment to be available..."
-          kubectl -n default wait --for=condition=available deployment/mongodb --timeout=300s
+          kubectl -n dev wait --for=condition=available deployment/mongodb --timeout=300s
 
           echo "Deployment verification complete."

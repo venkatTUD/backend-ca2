@@ -1,27 +1,13 @@
-# k8s/overlays/dev/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: default # Ensure this matches your dev namespace
-
+namespace: dev
 resources:
-- ../../base # Include the base manifests
+- ../../base
 
-# Using the newer 'patches' field instead of 'patchesStrategicMerge'
 patches:
-# This patch targets the mongodb-pvc and sets its storageClassName to 'standard'
-# It references the patch file located in the same directory.
-- target:
-    kind: PersistentVolumeClaim
-    name: mongodb-pvc
-  path: patch-mongodb-pvc-storageclass.yaml
-
-
-# Your image tag setting logic remains here
+  - path: mongodb-patch.yaml
+  
 images:
 - name: docker.io/venkatakurathitud/receipt-backend
   newName: docker.io/venkatakurathitud/receipt-backend
-  newTag: ${SHORT_SHA} # This will be replaced by the workflow
-
-# Include other resources/patches specific to the dev environment here
-# - your-dev-deployment-patch.yaml
-# - your-dev-service-patch.yaml
+  newTag: ${SHORT_SHA}

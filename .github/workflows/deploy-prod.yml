@@ -3,8 +3,9 @@ name: Deploy Backend to Prod
 on:
   push:
     branches: ["release/**"]
+  
   pull_request:
-    branches: ["release/**"]
+    branches: ["release/**","feature/k8s-improvements"]
 
 env:
   IMAGE_NAME: receipt-backend
