@@ -1,4 +1,4 @@
-name: Deploy Backend to Prod
+name: Backend Deployment to Production cluster
 
 on:
   push:

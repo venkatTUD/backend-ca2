@@ -1,4 +1,4 @@
-name: Deploy Backend to dev
+name: Backend Deployment to development Cluster
 
 on:
   push:
