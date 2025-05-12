@@ -82,6 +82,27 @@ spec:
               mountPath: /data/db
         # Removed the complex init-mongo container
       containers:
+        # - name: mongodb-exporter
+        #   image: percona/mongodb_exporter:0.39.0
+        #   ports:
+        #   - containerPort: 9216
+        #   args:
+        #   - --mongodb.uri=mongodb://$(MONGO_INITDB_ROOT_USERNAME):$(MONGO_INITDB_ROOT_PASSWORD)@localhost:27017
+        #   env:
+        #   - name: MONGO_INITDB_ROOT_USERNAME
+        #     valueFrom:
+        #       secretKeyRef:
+        #         name: mongodb-secret
+        #         key: mongodb-username
+        #   - name: MONGO_INITDB_ROOT_PASSWORD
+        #     valueFrom:
+        #       secretKeyRef:
+        #         name: mongodb-secret
+        #         key: mongodb-password
+        #   resources:
+        #     limits:
+        #       cpu: "100m"
+        #       memory: "100Mi"
         - name: mongodb
           image: mongo:latest
           command: ["mongod", "--bind_ip_all", "--auth"]

@@ -20,6 +20,11 @@ spec:
     metadata:
       labels:
         app: receipt-backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/actuator/prometheus"
+        sidecar.istio.io/inject: "false"
     spec:
       volumes:
       - name: tmp-volume
@@ -52,23 +57,20 @@ spec:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-username
-            # Ensure this matches the root user created by Mongo init
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongodb-secret
               key: mongodb-password
-            # Ensure this matches the root password created by Mongo init
         - name: JAVA_OPTS
-          # Note: DEBUG logging can increase memory usage. Keep this in mind.
           value: "-Dlogging.level.org.springframework.data.mongodb=DEBUG -Dlogging.level.org.mongodb.driver=DEBUG"
         resources:
           requests:
             cpu: "100m"
-            memory: "256Mi" # Increased request
+            memory: "256Mi"
           limits:
             cpu: "250m"
-            memory: "512Mi" # Increased limit - this is the critical change for OOMKill
+            memory: "512Mi"
         securityContext:
           runAsNonRoot: true
           runAsUser: 1000
@@ -77,16 +79,15 @@ spec:
         volumeMounts:
         - name: tmp-volume
           mountPath: /tmp
-
         livenessProbe:
           httpGet:
             path: /actuator/health/liveness
             port: 9090
-          initialDelaySeconds: 60 # Consider slightly increasing delay if startup is slow
+          initialDelaySeconds: 60
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /actuator/health/readiness
             port: 9090
-          initialDelaySeconds: 30 # Consider slightly increasing delay if startup is slow
+          initialDelaySeconds: 30
           periodSeconds: 5
